@@ -1195,7 +1195,7 @@ FILE *fp;
     /* dump a label with associated garbage */
     fprintf(fp, "%%%%IncludeFont: Times-Roman\n");
     fprintf(fp, "/f1 /|______Times-Roman dup RF findfont def\n{\n");
-    fprintf(fp, "f1 [%d 0 0 %d 0 0] makesetfont\n", FONT, FONT);
+    fprintf(fp, "f1 [%g 0 0 %g 0 0] makesetfont\n", FONT, FONT);
     fprintf(fp, "%d %d moveto\n", mid[0], mid[1]);
     fprintf(fp, "0 0 32 0 0 (%d) ts\n}\n", lines[i]->index);
     fprintf(fp, "[0 0 0 1]\nsts\nvmrs\n");

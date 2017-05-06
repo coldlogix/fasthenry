@@ -335,43 +335,43 @@ SYS *indsys;
 #endif
 
  if (indsys->opts->debug == ON) {
-  fprintf(stdout, "Total memory allocated: %d kilobytes ", memcount/1024);
+  fprintf(stdout, "Total memory allocated: %ld kilobytes ", memcount/1024);
   uallocEfcy(memcount);
 
-  fprintf(stdout, "  Q2M  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  Q2M  matrix memory allocated: %7.ld kilobytes\n",
 	  memQ2M/1024);
   memcount = memQ2M;
-  fprintf(stdout, "  Q2L  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  Q2L  matrix memory allocated: %7.ld kilobytes\n",
 	  memQ2L/1024);
   memcount += memQ2L;
-  fprintf(stdout, "  Q2P  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  Q2P  matrix memory allocated: %7.ld kilobytes\n",
 	  memQ2P/1024);
   memcount += memQ2P;
-  fprintf(stdout, "  L2L  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  L2L  matrix memory allocated: %7.ld kilobytes\n",
 	  memL2L/1024);
   memcount += memL2L;
-  fprintf(stdout, "  M2M  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  M2M  matrix memory allocated: %7.ld kilobytes\n",
 	  memM2M/1024);
   memcount += memM2M;
-  fprintf(stdout, "  M2L  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  M2L  matrix memory allocated: %7.ld kilobytes\n",
 	  memM2L/1024);
   memcount += memM2L;
-  fprintf(stdout, "  M2P  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  M2P  matrix memory allocated: %7.ld kilobytes\n",
 	  memM2P/1024);
   memcount += memM2P;
-  fprintf(stdout, "  L2P  matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  L2P  matrix memory allocated: %7.ld kilobytes\n",
 	  memL2P/1024);
   memcount += memL2P;
-  fprintf(stdout, "  Q2PD matrix memory allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  Q2PD matrix memory allocated: %7.ld kilobytes\n",
 	  memQ2PD/1024);
   memcount += memQ2PD;
-  fprintf(stdout, "  Miscellaneous mem. allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  Miscellaneous mem. allocated: %7.ld kilobytes\n",
 	  memMSC/1024);
   memcount += memMSC;
-  fprintf(stdout, "  Inductance mem allocated: %7.d kilobytes\n",
+  fprintf(stdout, "  Inductance mem allocated: %7.ld kilobytes\n",
 	  memIND/1024);
   memcount += memIND;
-  fprintf(stdout, "  Total memory (check w/above): %7.d kilobytes\n",
+  fprintf(stdout, "  Total memory (check w/above): %7.ld kilobytes\n",
 	  memcount/1024);
  }
 #endif

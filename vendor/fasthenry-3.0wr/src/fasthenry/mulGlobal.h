@@ -53,6 +53,7 @@ extern char *   realloc();
 #endif /* end if NEWS */
 #include <stdio.h>
 #include <math.h>
+#include <unistd.h>
 
 /* fastcap data structures */
 #include "mulStruct.h"
@@ -118,49 +119,49 @@ extern long membins[1001];
 #define IND 10
 
 #ifdef NO_SBRK
-#define sbrk(x) 0
+#define sbrk(x) 0L
 #endif
 
 #define DUMPALLOCSIZ                                                   \
 {                                                                      \
   (void)fprintf(stderr,                                                \
-		"Total Memory Allocated: %d kilobytes (brk = 0x%x)\n", \
-		memcount/1024, sbrk(0));			       \
+		"Total Memory Allocated: %ld kilobytes (brk = 0x%lx)\n", \
+		memcount/1024, (long)sbrk(0));			       \
 /* # ***** awked out for release */                                    \
-  (void)fprintf(stderr, " Q2M  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " Q2M  matrix memory allocated: %7.ld kilobytes\n",\
 		memQ2M/1024);                                          \
   memcount = memQ2M;                                                   \
-  (void)fprintf(stderr, " Q2L  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " Q2L  matrix memory allocated: %7.ld kilobytes\n",\
 		memQ2L/1024);                                          \
   memcount += memQ2L;                                                  \
-  (void)fprintf(stderr, " Q2P  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " Q2P  matrix memory allocated: %7.ld kilobytes\n",\
 		memQ2P/1024);                                          \
   memcount += memQ2P;                                                  \
-  (void)fprintf(stderr, " L2L  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " L2L  matrix memory allocated: %7.ld kilobytes\n",\
 		memL2L/1024);                                          \
   memcount += memL2L;                                                  \
-  (void)fprintf(stderr, " M2M  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " M2M  matrix memory allocated: %7.ld kilobytes\n",\
 		memM2M/1024);                                          \
   memcount += memM2M;                                                  \
-  (void)fprintf(stderr, " M2L  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " M2L  matrix memory allocated: %7.ld kilobytes\n",\
 		memM2L/1024);                                          \
   memcount += memM2L;                                                  \
-  (void)fprintf(stderr, " M2P  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " M2P  matrix memory allocated: %7.ld kilobytes\n",\
 		memM2P/1024);                                          \
   memcount += memM2P;                                                  \
-  (void)fprintf(stderr, " L2P  matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " L2P  matrix memory allocated: %7.ld kilobytes\n",\
 		memL2P/1024);                                          \
   memcount += memL2P;                                                  \
-  (void)fprintf(stderr, " Q2PD matrix memory allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " Q2PD matrix memory allocated: %7.ld kilobytes\n",\
 		memQ2PD/1024);                                          \
   memcount += memQ2PD;                                                  \
-  (void)fprintf(stderr, " Miscellaneous mem. allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " Miscellaneous mem. allocated: %7.ld kilobytes\n",\
 		memMSC/1024);                                          \
   memcount += memMSC;                                                  \
-  (void)fprintf(stderr, " Inductance mem. allocated: %7.d kilobytes\n",\
+  (void)fprintf(stderr, " Inductance mem. allocated: %7.ld kilobytes\n",\
 		memIND/1024);                                          \
   memcount += memMSC;                                                  \
-  (void)fprintf(stderr, " Total memory (check w/above): %7.d kilobytes\n",\
+  (void)fprintf(stderr, " Total memory (check w/above): %7.ld kilobytes\n",\
 		memcount/1024);                                        \
 /* # ***** awked out for release */                                    \
 }
@@ -175,7 +176,7 @@ extern long membins[1001];
        (void)fprintf(stderr,                                                \
 	 "\nfastcap: out of memory in file `%s' at line %d\n",              \
 	       __FILE__, __LINE__);                                         \
-       (void)fprintf(stderr, " (NULL pointer on %d byte request)\n",        \
+       (void)fprintf(stderr, " (NULL pointer on %ld byte request)\n",       \
 		     (NUM)*sizeof(TYPE));                                   \
        DUMPALLOCSIZ;                                                        \
        DUMPRSS;                                                             \
@@ -207,24 +208,24 @@ extern long membins[1001];
      }                                                                      \
 }
 
-#define MALLOC(PNTR, NUM, TYPE, FLAG, MTYP)                                  \
-{                                                                            \
-     if((NUM)*sizeof(TYPE)==0)			                             \
+#define MALLOC(PNTR, NUM, TYPE, FLAG, MTYP)                                 \
+{                                                                           \
+     if((NUM)*sizeof(TYPE)==0)			                            \
        (void)fprintf(stderr,                                                \
 		     "zero element request in file `%s' at line %d\n",      \
 		     __FILE__, __LINE__);	                            \
      else if(((PNTR)=(TYPE*)MALCORE((unsigned)((NUM)*sizeof(TYPE))))==NULL) { \
-       (void)fprintf(stderr,                                                 \
-	 "\nfastcap: out of memory in file `%s' at line %d\n",               \
-	       __FILE__, __LINE__);                                          \
-       (void)fprintf(stderr, " (NULL pointer on %d byte request)\n",         \
-		     (NUM)*sizeof(TYPE));                                    \
-       DUMPALLOCSIZ;                                                         \
-       DUMPRSS;                                                              \
-       (void)fflush(stderr);                                                 \
-       (void)fflush(stdout);                                                 \
-       if(FLAG == ON) exit(1);                                               \
-     }                                                                       \
+       (void)fprintf(stderr,                                                \
+	 "\nfastcap: out of memory in file `%s' at line %d\n",             \
+	       __FILE__, __LINE__);                                         \
+       (void)fprintf(stderr, " (NULL pointer on %ld byte request)\n",        \
+		     (NUM)*sizeof(TYPE));                                   \
+       DUMPALLOCSIZ;                                                        \
+       DUMPRSS;                                                             \
+       (void)fflush(stderr);                                                \
+       (void)fflush(stdout);                                                \
+       if(FLAG == ON) exit(1);                                              \
+     }                                                                      \
      else {                                                                 \
        memcount += ((NUM)*sizeof(TYPE));                                    \
        if(MTYP == AQ2M) memQ2M += ((NUM)*sizeof(TYPE));                     \

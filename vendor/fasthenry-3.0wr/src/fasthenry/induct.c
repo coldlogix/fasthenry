@@ -451,7 +451,7 @@ char *argv[];
   if (indsys->opts->debug == ON) 
     printf("Time to Form M and Z: %lg\n",dtime);
 
-  printf("Total Memory allocated: %d kilobytes\n",memcount/1024);
+  printf("Total Memory allocated: %ld kilobytes\n",memcount/1024);
 
   if (indsys->opts->debug == ON) 
     printf("Memory used and freed by lookup table: %d kilobytes\n",

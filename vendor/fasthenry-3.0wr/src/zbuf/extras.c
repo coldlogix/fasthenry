@@ -1,6 +1,8 @@
 #include "mulGlobal.h"
 #include "zbufGlobal.h"
 
+extern char *hack_path(char*);
+
 #define XI 0
 #define YI 1
 #define ZI 2
@@ -155,7 +157,7 @@ FILE *fp;
   int i, j;
   face **behind = fac->behind;
 
-  fprintf(fp, "Face %d, %d sides, depth %d, mark %d, greylev %d\n", 
+  fprintf(fp, "Face %d, %d sides, depth %d, mark %d, greylev %g\n", 
 	  fac->index, fac->numsides, fac->depth, fac->mark, fac->greylev);
   fprintf(fp, "  plane: n = (%g %g %g) rhs = %g\n",
 	  fac->normal[0], fac->normal[1], fac->normal[2], fac->rhs);

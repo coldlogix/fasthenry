@@ -144,7 +144,7 @@ SYS *indsys;
   char unitname[20];
 
   if (sscanf(line, "%*s %s", unitname) != 1) {
-    printf("couldn't read units line\n.%s\n");
+    printf("couldn't read units line\n.%s\n", line);
     return 1;
   }
   else if (strncasecmp("mil",unitname, 3) == 0)

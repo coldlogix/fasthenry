@@ -310,7 +310,7 @@ long memcount;
 
   total = (int)(sbrk(0) - (char *)base);
 
-  if(base == NULL) fprintf(stdout, "(top of memory = 0x%x", sbrk(0));
+  if(base == NULL) fprintf(stdout, "(top of memory = 0x%lx", (long)sbrk(0));
   else fprintf(stdout, "(%.3g%% efficiency",
 	       100*((double)memcount)/((double)total));
 

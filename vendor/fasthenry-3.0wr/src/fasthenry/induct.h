@@ -42,7 +42,7 @@ of this software.
 
 #if SUPERCON == ON
 #define FHVERSION "3.0wr"
-#define FHDATE "29Sep96, mod 27Apr04"
+#define FHDATE "29Sep96, mod 11Feb-2013"
 #else
 #define FHVERSION "3.0"
 #define FHDATE "29Sep96"

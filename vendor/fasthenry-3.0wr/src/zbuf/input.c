@@ -1110,7 +1110,8 @@ char *argv[], **input_file, **surf_list_file;
 	else if(!strcmp(&(argv[i][2]), "z") || !strcmp(&(argv[i][2]), "Z"))
 	    up_axis = ZI;
 	else {
-	  fprintf(stderr, "%s: bad up axis type `%s' -- use x, y or z\n");
+	  fprintf(stderr, "%s: bad up axis type `%s' -- use x, y or z\n",
+              argv[0], &(argv[i][2]));
           cmderr = TRUE;
           break;
         }

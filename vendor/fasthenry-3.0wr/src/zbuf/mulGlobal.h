@@ -47,6 +47,7 @@ extern char *   realloc();
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 
 /* fastcap data structures */
 #include "mulStruct.h"
@@ -111,8 +112,8 @@ extern long memMSC;
 #define DUMPALLOCSIZ                                                   \
 {                                                                      \
   (void)fprintf(stderr,                                                \
-		"Total Memory Allocated: %d kilobytes (brk = 0x%x)\n", \
-		memcount/1024, sbrk(0));                               \
+		"Total Memory Allocated: %ld kilobytes (brk = 0x%lx)\n", \
+		memcount/1024, (long)sbrk(0));                               \
 }
 
 #define CALLOC(PNTR, NUM, TYPE, FLAG, MTYP)                                 \
@@ -125,7 +126,7 @@ extern long memMSC;
        (void)fprintf(stderr,                                                \
 	 "\nfastcap: out of memory in file `%s' at line %d\n",              \
 	       __FILE__, __LINE__);                                         \
-       (void)fprintf(stderr, " (NULL pointer on %d byte request)\n",        \
+       (void)fprintf(stderr, " (NULL pointer on %ld byte request)\n",        \
 		     (NUM)*sizeof(TYPE));                                   \
        DUMPALLOCSIZ;                                                        \
        DUMPRSS;                                                             \
@@ -162,7 +163,7 @@ extern long memMSC;
        (void)fprintf(stderr,                                                 \
 	 "\nfastcap: out of memory in file `%s' at line %d\n",               \
 	       __FILE__, __LINE__);                                          \
-       (void)fprintf(stderr, " (NULL pointer on %d byte request)\n",         \
+       (void)fprintf(stderr, " (NULL pointer on %ld byte request)\n",         \
 		     (NUM)*sizeof(TYPE));                                    \
        DUMPALLOCSIZ;                                                         \
        DUMPRSS;                                                              \

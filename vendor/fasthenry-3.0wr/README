@@ -77,6 +77,12 @@ Modifications by:        Stephen R. Whiteley  (stevew@wrcad.com)
   Misc. code tweeks to avoid compiler warnings when using newer
   compilers, e.g., gcc-4.2.
 
+** 2-11-2013 Changes:
+
+  Fixed all warnings that issued when building on a OS X 10.6 MacBook
+  Pro, using the default configuration.  The programs should now build
+  cleanly on 64-bit platforms.
+
 
 --------------------- Superconductivity Support -------------------------
 
