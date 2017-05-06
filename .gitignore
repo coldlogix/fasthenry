@@ -1,0 +1,6 @@
+*.o
+*.swp
+*.mat
+*.a
+vendor/fasthenry-3.0wr/bin/fasthenry
+vendor/fasthenry-3.0wr/bin/zbuf
