@@ -1,38 +1,41 @@
-/*!\page LICENSE LICENSE
- 
-Copyright (C) 2003 by the Board of Trustees of Massachusetts Institute of
-Technology, hereafter designated as the Copyright Owners.
- 
-License to use, copy, modify, sell and/or distribute this software and
-its documentation for any purpose is hereby granted without royalty,
-subject to the following terms and conditions:
- 
-1.  The above copyright notice and this permission notice must
-appear in all copies of the software and related documentation.
- 
-2.  The names of the Copyright Owners may not be used in advertising or
-publicity pertaining to distribution of the software without the specific,
-prior written permission of the Copyright Owners.
- 
-3.  THE SOFTWARE IS PROVIDED "AS-IS" AND THE COPYRIGHT OWNERS MAKE NO
-REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, BY WAY OF EXAMPLE, BUT NOT
-LIMITATION.  THE COPYRIGHT OWNERS MAKE NO REPRESENTATIONS OR WARRANTIES OF
-MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE
-SOFTWARE WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS TRADEMARKS OR OTHER
-RIGHTS. THE COPYRIGHT OWNERS SHALL NOT BE LIABLE FOR ANY LIABILITY OR DAMAGES
-WITH RESPECT TO ANY CLAIM BY LICENSEE OR ANY THIRD PARTY ON ACCOUNT OF, OR
-ARISING FROM THE LICENSE, OR ANY SUBLICENSE OR USE OF THE SOFTWARE OR ANY
-SERVICE OR SUPPORT.
- 
-LICENSEE shall indemnify, hold harmless and defend the Copyright Owners and
-their trustees, officers, employees, students and agents against any and all
-claims arising out of the exercise of any rights under this Agreement,
-including, without limiting the generality of the foregoing, against any
-damages, losses or liabilities whatsoever with respect to death or injury to
-person or damage to property arising from or out of the possession, use, or
-operation of Software or Licensed Program(s) by LICENSEE or its customers.
- 
+/*
+Copyright (c) 1992 Massachusetts Institute of Technology, Cambridge, MA.
+All rights reserved.
+
+This Agreement gives you, the LICENSEE, certain rights and obligations.
+By using the software, you indicate that you have read, understood, and
+will comply with the terms.
+
+Permission to use, copy and modify for internal, noncommercial purposes
+is hereby granted.  Any distribution of this program or any part thereof
+is strictly prohibited without prior written consent of M.I.T.
+
+Title to copyright to this software and to any associated documentation
+shall at all times remain with M.I.T. and LICENSEE agrees to preserve
+same.  LICENSEE agrees not to make any copies except for LICENSEE'S
+internal noncommercial use, or to use separately any portion of this
+software without prior written consent of M.I.T.  LICENSEE agrees to
+place the appropriate copyright notice on any such copies.
+
+Nothing in this Agreement shall be construed as conferring rights to use
+in advertising, publicity or otherwise any trademark or the name of
+"Massachusetts Institute of Technology" or "M.I.T."
+
+M.I.T. MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED.  By
+way of example, but not limitation, M.I.T. MAKES NO REPRESENTATIONS OR
+WARRANTIES OF MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR
+THAT THE USE OF THE LICENSED SOFTWARE COMPONENTS OR DOCUMENTATION WILL
+NOT INFRINGE ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+M.I.T. shall not be held liable for any liability nor for any direct,
+indirect or consequential damages with respect to any claim by LICENSEE
+or any third party on account of or arising from this Agreement or use
+of this software.
 */
+
+/* S. R. Whiteley (stevew@srware.com) adapted this code for
+ * superconductors 6/29/96.  These modifications are active
+ * when the preprocessor variable SUPERCON is defined.
+ */
 
 /* # ***** sort to /src/header
    # ***** */
@@ -46,7 +49,7 @@ extern char *   calloc();
 extern char *   malloc();
 extern char *   realloc();
 #else
-#include <malloc.h>
+#include <stdlib.h>
 #endif /* end if NEWS */
 #include <stdio.h>
 #include <math.h>
@@ -114,11 +117,15 @@ extern long membins[1001];
 #define AMSC 9
 #define IND 10
 
+#ifdef NO_SBRK
+#define sbrk(x) 0
+#endif
+
 #define DUMPALLOCSIZ                                                   \
 {                                                                      \
   (void)fprintf(stderr,                                                \
 		"Total Memory Allocated: %d kilobytes (brk = 0x%x)\n", \
-		memcount/1024, sbrk(0));                               \
+		memcount/1024, sbrk(0));			       \
 /* # ***** awked out for release */                                    \
   (void)fprintf(stderr, " Q2M  matrix memory allocated: %7.d kilobytes\n",\
 		memQ2M/1024);                                          \
@@ -174,7 +181,7 @@ extern long membins[1001];
        DUMPRSS;                                                             \
        (void)fflush(stderr);                                                \
        (void)fflush(stdout);                                                \
-       if(FLAG == ON) exit(0);                                              \
+       if(FLAG == ON) exit(1);                                              \
      }                                                                      \
      else {                                                                 \
        memcount += ((NUM)*sizeof(TYPE));                                    \
@@ -191,7 +198,7 @@ extern long membins[1001];
        else if(MTYP == IND) memIND += ((NUM)*sizeof(TYPE));                 \
        else {                                                               \
          (void)fprintf(stderr, "CALLOC: unknown memory type %d\n", MTYP);   \
-         exit(0);                                                           \
+         exit(1);                                                           \
        }                                                                    \
      /*if ((NUM)*sizeof(TYPE) >= 10000)                                     \
          membins[1000] += 1;                                                \
@@ -216,7 +223,7 @@ extern long membins[1001];
        DUMPRSS;                                                              \
        (void)fflush(stderr);                                                 \
        (void)fflush(stdout);                                                 \
-       if(FLAG == ON) exit(0);                                               \
+       if(FLAG == ON) exit(1);                                               \
      }                                                                       \
      else {                                                                 \
        memcount += ((NUM)*sizeof(TYPE));                                    \
@@ -233,7 +240,7 @@ extern long membins[1001];
        else if(MTYP == IND) memIND += ((NUM)*sizeof(TYPE));                 \
        else {                                                               \
          (void)fprintf(stderr, "MALLOC: unknown memory type %d\n", MTYP);   \
-         exit(0);                                                           \
+         exit(1);                                                           \
        }                                                                    \
      /*if ((NUM)*sizeof(TYPE) >= 10000)                                     \
          membins[1000] += 1;                                                \
@@ -377,6 +384,7 @@ misc. global macros
 #define ABSTOL 0.01		/* iterations until ||res||inf < ABSTOL */
 #define MAXITER size		/* max num iterations ('size' => # panels) */
 #define EXRTSH 0.9		/* exact/ttl>EXRTSH for lev => make last lev */
+#define SUPERCON ON     /* handle superconductive conductors */
 /* (add any new configuration flags to dumpConfig() in mulDisplay.c) */
 
 /* Output Format Configuration */

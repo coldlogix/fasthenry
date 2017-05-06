@@ -1,40 +1,7 @@
-/*!\page LICENSE LICENSE
- 
-Copyright (C) 2003 by the Board of Trustees of Massachusetts Institute of
-Technology, hereafter designated as the Copyright Owners.
- 
-License to use, copy, modify, sell and/or distribute this software and
-its documentation for any purpose is hereby granted without royalty,
-subject to the following terms and conditions:
- 
-1.  The above copyright notice and this permission notice must
-appear in all copies of the software and related documentation.
- 
-2.  The names of the Copyright Owners may not be used in advertising or
-publicity pertaining to distribution of the software without the specific,
-prior written permission of the Copyright Owners.
- 
-3.  THE SOFTWARE IS PROVIDED "AS-IS" AND THE COPYRIGHT OWNERS MAKE NO
-REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, BY WAY OF EXAMPLE, BUT NOT
-LIMITATION.  THE COPYRIGHT OWNERS MAKE NO REPRESENTATIONS OR WARRANTIES OF
-MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE
-SOFTWARE WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS TRADEMARKS OR OTHER
-RIGHTS. THE COPYRIGHT OWNERS SHALL NOT BE LIABLE FOR ANY LIABILITY OR DAMAGES
-WITH RESPECT TO ANY CLAIM BY LICENSEE OR ANY THIRD PARTY ON ACCOUNT OF, OR
-ARISING FROM THE LICENSE, OR ANY SUBLICENSE OR USE OF THE SOFTWARE OR ANY
-SERVICE OR SUPPORT.
- 
-LICENSEE shall indemnify, hold harmless and defend the Copyright Owners and
-their trustees, officers, employees, students and agents against any and all
-claims arising out of the exercise of any rights under this Agreement,
-including, without limiting the generality of the foregoing, against any
-damages, losses or liabilities whatsoever with respect to death or injury to
-person or damage to property arising from or out of the possession, use, or
-operation of Software or Licensed Program(s) by LICENSEE or its customers.
- 
-*//* This is the main part of the code */
+/* This is the main part of the code */
 
 #include "induct.h"
+#include <string.h>
 
 /* these are missing in some math.h files */
 extern double asinh();
@@ -64,7 +31,13 @@ int machine = 0000;
 int machine = 1000;
 #endif
 
+#if SUPERCON == ON
+void fillZ_diag(SYS *indsys, double omega);
+void set_rvals(SYS *indsys, double omega);
+#endif
 
+
+int
 main(argc, argv)
 int argc;
 char *argv[];
@@ -153,6 +126,7 @@ char *argv[];
     fp = stdin;
   }
   else {
+    /* SRW -- read ascii file */
     fp = fopen(opts->fname, "r");
     if (fp == NULL) {
       printf("Couldn't open %s\n", opts->fname);
@@ -219,6 +193,10 @@ char *argv[];
 
   starttimer;
 
+#if SUPERCON == ON
+  set_rvals(indsys, 2*PI*indsys->fmin);
+#endif
+
   /* set up multipole stuff */
   sys = SetupMulti(chglist, indsys);
 
@@ -259,6 +237,7 @@ char *argv[];
   if ( !(opts->makeFastCapFile & (SIMPLE | REFINED)) 
        && !(opts->orderROM > 0 && opts->onlyROM)   ) {
     concat4(outfname,"Zc",opts->suffix,".mat");   /* put filnames together */
+    /* SRW -- this is ascii data */
     fp3 = fopen(outfname, "w");
     if (fp3 == NULL) {
       printf("couldn't open file %s\n",outfname);
@@ -504,7 +483,8 @@ char *argv[];
   if (indsys->opts->debug == ON) {
     /* open Ycond.mat */
     concat4(outfname,"Ycond",opts->suffix,".mat");
-    fp = fopen(outfname, "w");
+    /* SRW -- this is binary data */
+    fp = fopen(outfname, "wb");
     if (fp == NULL) {
       printf("couldn't open file %s\n",outfname);
       exit(1);
@@ -514,7 +494,8 @@ char *argv[];
   /* open b.mat */
   if (opts->dumpMats != OFF) {
     concat4(outfname,"b",opts->suffix,".mat");
-    if ((fb = fopen(outfname,"w")) == NULL)
+    /* SRW -- this is binary data */
+    if ((fb = fopen(outfname,"wb")) == NULL)
       fprintf(stderr, "No open fb\n");
   }
 
@@ -560,7 +541,8 @@ char *argv[];
 #if 1==0
       /* open orig.mat */
       concat4(outfname,"orig",opts->suffix,".mat");
-      if ((fROM = fopen(outfname,"w")) == NULL)
+      /* SRW -- this is binary data */
+      if ((fROM = fopen(outfname,"wb")) == NULL)
         fprintf(stderr, "No open fROM\n");
       /* dump what we have of the original system */
       dumpROMbin(fROM, NULL, B, C, NULL,
@@ -570,6 +552,7 @@ char *argv[];
 
     /* open rom.m */
       concat4(outfname,"rom",opts->suffix,".m");
+      /* SRW -- this is ascii data */
       if ((fROM = fopen(outfname,"w")) == NULL)
         fprintf(stderr, "No open fROM\n");
 
@@ -582,6 +565,7 @@ char *argv[];
 
     /* generate equivalent circuit */
     concat4(outfname,"equiv_circuitROM",opts->suffix,".spice");
+    /* SRW -- this is ascii data */
     if ((fROM = fopen(outfname,"w")) == NULL)
       fprintf(stderr, "No open fROM\n");
     /* now dump the reduced order model */
@@ -603,6 +587,10 @@ char *argv[];
     printf("Frequency = %lg\n",freq);
 
     starttimer;
+#if SUPERCON == ON
+    if (freq != fmin)
+      fillZ_diag(indsys, 2*PI*freq);
+#endif
 
     if (!dont_form_Z 
         && (opts->mat_vect_prod == DIRECT || opts->soln_technique==LUDECOMP)) {
@@ -613,7 +601,8 @@ char *argv[];
 	if (m == 0) {
 	  if (opts->kind & MATLAB) {
             concat4(outfname,"MZMt",opts->suffix,".mat");
-	    if ( (fp2 = fopen(outfname,"w")) == NULL) {
+        /* SRW -- this is binary data */
+	    if ( (fp2 = fopen(outfname,"wb")) == NULL) {
 	      printf("Couldn't open file\n");
 	      exit(1);
 	    }
@@ -623,6 +612,7 @@ char *argv[];
 	  }
 	  if (opts->kind & TEXT) {
             concat4(outfname,"MZMt",opts->suffix,".dat");
+        /* SRW -- this is ascii data */
 	    if ( (fp2 = fopen(outfname,"w")) == NULL) {
 	      printf("Couldn't open file\n");
 	      exit(1);
@@ -789,7 +779,8 @@ char *argv[];
       extractYcol(indsys->FinalY, x0, ext, indsys->externals);
 
       if (indsys->opts->debug == ON) {
-	fptemp = fopen("Ytemp.mat", "w");
+    /* SRW -- this is binary data */
+	fptemp = fopen("Ytemp.mat", "wb");
 	if (fptemp == NULL) {
 	  printf("couldn't open file %s\n","Ytemp.mat");
 	  exit(1);
@@ -866,6 +857,7 @@ char *argv[];
       fprintf(stderr, "%d\n", membins[i]);
 #endif
 
+  return (0);
 }
 
 /* this will divide a rectangular segment into many filaments */
@@ -1239,15 +1231,24 @@ SYS *indsys;
     for(j = 0; j < seg1->num_fils; j++) {
       fil_j = &(seg1->filaments[j]);
       filnum_j = fil_j->filnumber;
+#if SUPERCON == ON
+      R[filnum_j] = fil_j->length*seg1->r1/fil_j->area;
+#else
       R[filnum_j] = resistance(fil_j, seg1->sigma);
+#endif
       if (indsys->opts->mat_vect_prod != MULTIPOLE 
           && !indsys->dont_form_Z) {
 	for(seg2 = indsys->segment; seg2 != NULL; seg2 = seg2->next) {
 	  for(m = 0; m < seg2->num_fils; m++) {
 	    fil_m = &(seg2->filaments[m]);
 	    filnum_m = fil_m->filnumber;
-	    if (filnum_m == filnum_j)
+	    if (filnum_m == filnum_j) {
 	      Z[filnum_m][filnum_m] = selfterm(fil_m); /* do self-inductance */
+#if SUPERCON == ON
+	      if (seg1->lambda != 0.0)
+	        Z[filnum_m][filnum_m] += seg1->r2*fil_j->length/fil_j->area;
+#endif
+	    }
 	    else
 	      if (filnum_m > filnum_j) /*we haven't done it yet */
 		
@@ -1259,6 +1260,109 @@ SYS *indsys;
     }
   }
 }
+
+#if SUPERCON == ON
+/* Have to reset the diag elements for each omega, if superconductor
+ * (lambda != 0) and sigma != 0.
+ */
+void fillZ_diag(SYS *indsys, double omega)
+{
+  int i, j;
+  FILAMENT *fil_j;
+  int filnum_j;
+  SEGMENT *seg1;
+  double **Z, *R;
+  double tmp, tmp1, dnom, r1, r2;
+
+  Z = indsys->Z;
+  R = indsys->R;
+
+  for(seg1 = indsys->segment; seg1 != NULL; seg1 = seg1->next) {
+    if (seg1->lambda != 0.0 && seg1->sigma != 0.0) {
+      /* segment is a superconductor with frequency dependent terms */
+      tmp = MU0*seg1->lambda*seg1->lambda;
+      tmp1 = tmp*omega;
+      dnom = tmp1*seg1->sigma;
+      dnom = dnom*dnom + 1.0;
+      seg1->r1 = r1 = seg1->sigma*tmp1*tmp1/dnom;
+      seg1->r2 = r2 = tmp/dnom;
+      for(j = 0; j < seg1->num_fils; j++) {
+        fil_j = &(seg1->filaments[j]);
+        filnum_j = fil_j->filnumber;
+        R[filnum_j] = fil_j->length*r1/fil_j->area;
+        Z[filnum_j][filnum_j] = selfterm(fil_j) +
+          r2*fil_j->length/fil_j->area;
+      }
+    }
+  }
+}
+
+/*
+ * Theory:
+ *    In normal metal:     (1)  del X H = -i*omega*mu*sigma * H
+ *    In superconductor:   (2)  del X H = (1/lambda)^2 * H
+ * 
+ *    In fasthenry, (1) is solved, so the game is to replace sigma in (1)
+ *    with a complex variable that includes and reduces to (2).  We choose
+ * 
+ *    sigma_prime = sigma + i/(omega*mu*lambda^2)
+ * 
+ *    Then, using sigma_prime in (1) rather than sigma, one obtains an
+ *    expression that reduces to (2) at omega = 0,  yet retains properties
+ *    of (1).  This is the two-fluid model, where the sigma in sigma_prime
+ *    represents the conductivity due to unpaired electrons.
+ * 
+ *    Since sigma_prime blows up at omega = 0, we work with the impedance,
+ *    which we take as z = r1 + i*omega*r2 = i/sigma_prime.  The r1 and
+ *    r2 variables are thus
+ * 
+ *           (3) r1 =    sigma*(omega*mu*lambda^2)^2
+ *                    --------------------------------
+ *                    (sigma*omega*mu*lambda^2)^2 + 1
+ * 
+ *           (4) r2 =           mu*lambda^2
+ *                    --------------------------------
+ *                    (sigma*omega*mu*lambda^2)^2 + 1
+ */
+
+/* Set the r1, r2 entries to the appropriate values.  The r1 entry
+ * comes from the real value of sigma (1/sigma for normal metals).
+ * The r2 entry comes from the imaginary part of sigma, which reduces
+ * to MU0*lambda^2 when the real part of sigma (default 0 for
+ * superconductors) is negligible, and is 0 for normal metals.
+ * The r2 term contributes to the inductance matrix diagonal.
+ */
+void set_rvals(SYS *indsys, double omega)
+{
+  SEGMENT *seg1;
+  double tmp, tmp1, dnom, r1, r2;
+
+  for(seg1 = indsys->segment; seg1 != NULL; seg1 = seg1->next) {
+    if (seg1->lambda != 0.0) {
+      /* segment is a superconductor */
+      tmp = MU0*seg1->lambda*seg1->lambda;
+      if (seg1->sigma != 0.0) {
+        /* the terms become frequency dependent */
+        tmp1 = tmp*omega;
+        dnom = tmp1*seg1->sigma;
+        dnom = dnom*dnom + 1.0;
+        r1 = seg1->sigma*tmp1*tmp1/dnom;
+        r2 = tmp/dnom;
+      }
+      else {
+        r1 = 0.0;
+        r2 = tmp;
+      }
+    }
+    else {
+      r1 = 1/seg1->sigma;
+      r2 = 0.0;
+    }
+    seg1->r1 = r1;
+    seg1->r2 = r2;
+  }
+}
+#endif
 
 /* calculates resistance of filament */
 double resistance(fil, sigma)
@@ -1336,6 +1440,7 @@ SYS *indsys;
 
     if (opts->kind & TEXT) {
       concat4(outfname,"M",opts->suffix,".dat");
+      /* SRW -- this is ascii data */
       if ( (fp2 = fopen(outfname,"w")) == NULL) {
 	printf("Couldn't open file\n");
 	exit(1);
@@ -1346,7 +1451,8 @@ SYS *indsys;
 
     if (opts->kind & MATLAB) {
       concat4(outfname,"M",opts->suffix,".mat");
-      if ( (fp = fopen(outfname,"w")) == NULL) {
+      /* SRW -- this is binary data */
+      if ( (fp = fopen(outfname,"wb")) == NULL) {
 	printf("Couldn't open file\n");
 	exit(1);
       }
@@ -1371,6 +1477,7 @@ SYS *indsys;
 
     if (opts->kind & TEXT) {
       concat4(outfname,"A",opts->suffix,".dat");
+      /* SRW -- this is ascii data */
       if ( (fp2 = fopen(outfname,"w")) == NULL) {
 	printf("Couldn't open file\n");
 	exit(1);
@@ -1381,7 +1488,8 @@ SYS *indsys;
 
     if (opts->kind & MATLAB) {
       concat4(outfname,"A",opts->suffix,".mat");
-      if ( (fp = fopen(outfname,"w")) == NULL) {
+      /* SRW -- this is binary data */
+      if ( (fp = fopen(outfname,"wb")) == NULL) {
 	printf("Couldn't open file\n");
 	exit(1);
       }
@@ -1392,6 +1500,7 @@ SYS *indsys;
 
   /* save text files */
   if (opts->kind & TEXT && opts->dumpMats & DUMP_RL) {
+    /* SRW -- this is ascii data */
     /*
     if ( (fp2 = fopen("M.dat","w")) == NULL) {
       printf("Couldn't open file\n");
@@ -1410,6 +1519,7 @@ SYS *indsys;
     */
 
     concat4(outfname,"R",opts->suffix,".dat");
+    /* SRW -- this is ascii data */
     if ( (fp2 = fopen(outfname,"w")) == NULL) {
       printf("Couldn't open file\n");
       exit(1);
@@ -1423,6 +1533,7 @@ SYS *indsys;
       /* do imaginary part of Z */
       
       concat4(outfname,"L",opts->suffix,".dat");
+      /* SRW -- this is ascii data */
       if ( (fp2 = fopen(outfname,"w")) == NULL) {
 	printf("Couldn't open file\n");
 	exit(1);
@@ -1445,7 +1556,8 @@ SYS *indsys;
   
   if (opts->kind & MATLAB && opts->dumpMats & DUMP_RL) {
     concat4(outfname,"RL",opts->suffix,".mat");
-    if ( (fp = fopen(outfname,"w")) == NULL) {
+    /* SRW -- this is binary data */
+    if ( (fp = fopen(outfname,"wb")) == NULL) {
       printf("Couldn't open file\n");
       exit(1);
     }

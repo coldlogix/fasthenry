@@ -1,43 +1,9 @@
-/*!\page LICENSE LICENSE
- 
-Copyright (C) 2003 by the Board of Trustees of Massachusetts Institute of
-Technology, hereafter designated as the Copyright Owners.
- 
-License to use, copy, modify, sell and/or distribute this software and
-its documentation for any purpose is hereby granted without royalty,
-subject to the following terms and conditions:
- 
-1.  The above copyright notice and this permission notice must
-appear in all copies of the software and related documentation.
- 
-2.  The names of the Copyright Owners may not be used in advertising or
-publicity pertaining to distribution of the software without the specific,
-prior written permission of the Copyright Owners.
- 
-3.  THE SOFTWARE IS PROVIDED "AS-IS" AND THE COPYRIGHT OWNERS MAKE NO
-REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, BY WAY OF EXAMPLE, BUT NOT
-LIMITATION.  THE COPYRIGHT OWNERS MAKE NO REPRESENTATIONS OR WARRANTIES OF
-MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE
-SOFTWARE WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS TRADEMARKS OR OTHER
-RIGHTS. THE COPYRIGHT OWNERS SHALL NOT BE LIABLE FOR ANY LIABILITY OR DAMAGES
-WITH RESPECT TO ANY CLAIM BY LICENSEE OR ANY THIRD PARTY ON ACCOUNT OF, OR
-ARISING FROM THE LICENSE, OR ANY SUBLICENSE OR USE OF THE SOFTWARE OR ANY
-SERVICE OR SUPPORT.
- 
-LICENSEE shall indemnify, hold harmless and defend the Copyright Owners and
-their trustees, officers, employees, students and agents against any and all
-claims arising out of the exercise of any rights under this Agreement,
-including, without limiting the generality of the foregoing, against any
-damages, losses or liabilities whatsoever with respect to death or injury to
-person or damage to property arising from or out of the possession, use, or
-operation of Software or Licensed Program(s) by LICENSEE or its customers.
- 
-*//* this will read the input file */
+/* this will read the input file */
 
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <math.h>
 #include "induct.h"
 
@@ -53,20 +19,36 @@ typedef struct Defaults {
       ish,
       isw,
       issigma,
+#if SUPERCON == ON
+      islambda,
+#endif
       ishinc,
       iswinc,
       isrw,           /* width ratio */
       isrh;           /* height ratio */
 
   double x,y,z,h,w,sigma;
+#if SUPERCON == ON
+  double lambda;
+#endif
   int hinc, winc;
   double rw, rh;
 } DEFAULTS;
 
 char *getaline();
            
-static DEFAULTS defaults = {0, 0 , 0, 0, 0, 1,     1 ,1,  1 ,  1,
-			    0, 0 , 0, 0, 0, 5.8e7, 1, 1, 2.0, 2.0};
+static DEFAULTS defaults = {0, 0 , 0, 0, 0,
+#if SUPERCON == ON
+                0, 0,
+#else
+                1,
+#endif
+                1 ,1,  1 ,  1,
+			    0, 0 , 0, 0, 0, 5.8e7,
+#if SUPERCON == ON
+                0.0,
+#endif
+                1, 1, 2.0, 2.0};
 
 static double units = 1.0;
 
@@ -456,6 +438,13 @@ char *line;
       defaults.sigma = dumb/units;
       line += skip;
     }
+#if SUPERCON == ON
+    else if (sscanf(line," lambda = %lf%n",&dumb,&skip) == 1) {
+      defaults.islambda = 1;
+      defaults.lambda = dumb*units;
+      line += skip;
+    }
+#endif
     else if (sscanf(line," nhinc = %d%n",&dumbi,&skip) == 1) {
       defaults.ishinc = 1;
       defaults.hinc = dumbi;
@@ -637,6 +626,10 @@ SEGMENT **retseg;
   SEGMENT *seg;
   static char name[80], n1[80], n2[80];
   NODES *anode;
+#if SUPERCON == ON
+  int lambdaread = 0;
+  double lambda = 0.0;
+#endif
 
    char *segname;
    double *widthdir;   /*if width is not || to x-y plane and perpendicular to*/
@@ -698,10 +691,17 @@ SEGMENT **retseg;
 	sigmaread = 1;
       }
       else if (sscanf(line," rho = %lf%n",&dumb,&skip) == 1) {
-        sigma = (1.0/dumb)/units;
+	sigma = (1.0/dumb)/units;
 	line += skip;
 	sigmaread = 1;
       }
+#if SUPERCON == ON
+      else if (sscanf(line," lambda = %lf%n",&dumb,&skip) == 1) {
+	lambda = dumb*units;
+	line += skip;
+	lambdaread = 1;
+      }
+#endif
       else if (sscanf(line," nhinc = %d%n",&dumbi,&skip) == 1) {
 	hinc = dumbi;
 	line += skip;
@@ -765,13 +765,39 @@ SEGMENT **retseg;
       return 1;
     }
   }
+#if SUPERCON == ON
+  if (lambdaread == 0) {
+    if (defaults.islambda == 1)
+      lambda = defaults.lambda;
+  }
+#endif
   if (sigmaread == 0) {
     if (defaults.issigma == 1) 
       sigma = defaults.sigma;
+#if SUPERCON == ON
     else {
-      printf("Sigma or rho not given for seg %s\n",segname);
-      return 1;
+      if (lambda != 0.0)
+        sigma = 0.0;
+      else {
+        sigma = defaults.sigma;
+        /* SRW 10/20/01
+         * If no sigma/rho/lambda is given, use the default sigma.  In stock
+         * fasthenry, defaults.issigma is initialized to 1, if SUPERCON it is
+         * initialized to 0.  So, defaulting sigma corresponds to stock
+         * behavior.
+         */
+        /*
+        printf("Sigma/rho/lambda not given for seg %s\n",segname); 
+        return 1;   
+        */
+      }
     }
+#else
+    else {
+      printf("Sigma or rho not given for seg %s\n",segname); 
+      return 1;   
+    }
+#endif
   }
   if (hincread == 0) {
     if (defaults.ishinc == 1) 
@@ -835,8 +861,11 @@ SEGMENT **retseg;
     return 1;
   }
    
-  seg = makeseg(segname, node[0], node[1], height, width, sigma, hinc, winc,
-		rh, rw, widthdir, indsys->num_segs, type, indsys);
+  seg = makeseg(segname, node[0], node[1], height, width, sigma,
+#if SUPERCON == ON
+        lambda,
+#endif
+        hinc, winc, rh, rw, widthdir, indsys->num_segs, type, indsys);
 
 #if 1 == 0
   /* add segment to linked list */
@@ -855,8 +884,11 @@ SEGMENT **retseg;
   return 0;
 }
 
-SEGMENT *makeseg(name, node0, node1, height, width, sigma, hinc, winc,
-		r_height, r_width, widthdir, number, type, indsys)
+SEGMENT *makeseg(name, node0, node1, height, width, sigma,
+#if SUPERCON == ON
+        lambda,
+#endif  
+        hinc, winc, r_height, r_width, widthdir, number, type, indsys)
    char *name;
    double *widthdir;  /*if width is not || to x-y plane and perpendicular to*/
                        /* the length, then this is 3 element vector in       */
@@ -867,6 +899,9 @@ SEGMENT *makeseg(name, node0, node1, height, width, sigma, hinc, winc,
    int hinc, winc;             /* number of filament divisions in each dir */
    NODES *node0, *node1;                /* nodes at the ends */
    double sigma;               /* conductivity */
+#if SUPERCON == ON
+   double lambda;              /* London penetration depth */
+#endif
    double r_height, r_width; /* ratio of adjacent fils for assignFil() */
    SYS *indsys;         /* nonNULL if we are to add to system linked list */
 {
@@ -887,6 +922,9 @@ SEGMENT *makeseg(name, node0, node1, height, width, sigma, hinc, winc,
   seg->r_height = r_height;
   seg->r_width = r_width;
   seg->sigma = sigma;
+#if SUPERCON == ON
+  seg->lambda = lambda;
+#endif  
   seg->node[0] = node0;
   seg->node[1] = node1;
   add_to_connected_segs(node0, seg, NULL);
@@ -1006,7 +1044,12 @@ GROUNDPLANE **retplane;
   grndp->indsys = indsys;
   grndp->usernodes = NULL;
   grndp->fake_seg_list = NULL;
-  grndp->sigma = defaults.sigma;
+#if SUPERCON == ON
+  grndp->lambda = defaults.lambda;
+  grndp->sigma = 0.0;
+#else
+  grndp->sigma = defaults.sigma;   
+#endif
   grndp->rh = defaults.rh;
   grndp->hinc = 1;
   grndp->filename = NULL;
@@ -1116,6 +1159,12 @@ GROUNDPLANE **retplane;
       grndp->sigma = (1.0/dumb)/units;
       line += skip;
     }
+#if SUPERCON == ON
+    else if (sscanf(line," lambda = %lf%n",&dumb,&skip) == 1) {
+      grndp->lambda = dumb*units;
+      line += skip;
+    }
+#endif
     else if (sscanf(line," nhinc = %d%n",&dumbi,&skip) == 1) {
       grndp->hinc = dumbi;
       line += skip;
@@ -1187,6 +1236,12 @@ GROUNDPLANE **retplane;
   }/* while not a blank line */
 
   /* do checks to verify the line was read correctly */
+#if SUPERCON == ON
+  if (grndp->sigma == 0.0) {
+    if (defaults.issigma || grndp->lambda == 0.0)
+      grndp->sigma = defaults.sigma;
+  }  
+#endif
   if(xred != 3) {
     printf(" x coordinate not given for plane\n");
     for (i = 0; i < 3; i++){
@@ -1227,6 +1282,7 @@ nonuniform discretization file %s\n",grndp->filename);
     if (strcmp(grndp->filename,"none") == 0)
       nonuni_fp = NULL;
     else
+      /* SRW -- read ascii file */
       if ( (nonuni_fp = fopen(grndp->filename,"r")) == NULL) {
 	printf("Couldn't open nonuniform hierarchy file %s for plane %s\n",
 	       grndp->filename, grndp->name);
@@ -1400,7 +1456,11 @@ nonuniform discretization file %s\n",grndp->filename);
 	  sprintf(templine, "e1%s%d_%d",grndp->name, j, i);
 
 	  tempseg = makeseg(templine, grndp->pnodes[j][i], grndp->pnodes[j+1][i],
-			    seghei, segwid1, grndp->sigma, grndp->hinc, 1,
+			    seghei, segwid1, grndp->sigma,
+#if SUPERCON == ON
+			    grndp->lambda,
+#endif
+			    grndp->hinc, 1,
 			    grndp->rh, dontcare, widthdir, indsys->num_segs, 
 			    GPTYPE, indsys);
 
@@ -1425,7 +1485,11 @@ nonuniform discretization file %s\n",grndp->filename);
 	  widthdir[XX] = wx; widthdir[YY] = wy; widthdir[ZZ] = wz;
 	  sprintf(templine, "e2%s%d_%d",grndp->name, j, i);
 	  tempseg = makeseg(templine, grndp->pnodes[j][i], grndp->pnodes[j][i+1],
-			    seghei, segwid2, grndp->sigma, grndp->hinc, 1,
+			    seghei, segwid2, grndp->sigma,
+#if SUPERCON == ON
+			    grndp->lambda,
+#endif
+			    grndp->hinc, 1,
 			    grndp->rh, dontcare, widthdir, indsys->num_segs, 
 			    GPTYPE, indsys);
 

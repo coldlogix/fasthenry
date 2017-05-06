@@ -1,38 +1,4 @@
-/*!\page LICENSE LICENSE
- 
-Copyright (C) 2003 by the Board of Trustees of Massachusetts Institute of
-Technology, hereafter designated as the Copyright Owners.
- 
-License to use, copy, modify, sell and/or distribute this software and
-its documentation for any purpose is hereby granted without royalty,
-subject to the following terms and conditions:
- 
-1.  The above copyright notice and this permission notice must
-appear in all copies of the software and related documentation.
- 
-2.  The names of the Copyright Owners may not be used in advertising or
-publicity pertaining to distribution of the software without the specific,
-prior written permission of the Copyright Owners.
- 
-3.  THE SOFTWARE IS PROVIDED "AS-IS" AND THE COPYRIGHT OWNERS MAKE NO
-REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, BY WAY OF EXAMPLE, BUT NOT
-LIMITATION.  THE COPYRIGHT OWNERS MAKE NO REPRESENTATIONS OR WARRANTIES OF
-MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE
-SOFTWARE WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS TRADEMARKS OR OTHER
-RIGHTS. THE COPYRIGHT OWNERS SHALL NOT BE LIABLE FOR ANY LIABILITY OR DAMAGES
-WITH RESPECT TO ANY CLAIM BY LICENSEE OR ANY THIRD PARTY ON ACCOUNT OF, OR
-ARISING FROM THE LICENSE, OR ANY SUBLICENSE OR USE OF THE SOFTWARE OR ANY
-SERVICE OR SUPPORT.
- 
-LICENSEE shall indemnify, hold harmless and defend the Copyright Owners and
-their trustees, officers, employees, students and agents against any and all
-claims arising out of the exercise of any rights under this Agreement,
-including, without limiting the generality of the foregoing, against any
-damages, losses or liabilities whatsoever with respect to death or injury to
-person or damage to property arising from or out of the possession, use, or
-operation of Software or Licensed Program(s) by LICENSEE or its customers.
- 
-*//* # ***** sort to /src/main
+/* # ***** sort to /src/main
    # ***** */
 #include "mulGlobal.h"
 
@@ -111,11 +77,11 @@ int n, m;
 {
   if(m > n) {
     fprintf(stderr, "index: m = %d > n = %d\n", m, n);
-    exit(0);
+    exit(1);
   }
   if(n < 0 || m < 0) {
     fprintf(stderr, "index: n = %d or m = %d negative\n", n, m);
-    exit(0);
+    exit(1);
   }
   return(m + (n*(n+1))/2);
 }
@@ -132,15 +98,15 @@ int n, m, cterms;		/* cterms is costerms(order) */
 {
   if(m > n) {
     fprintf(stderr, "sindex: m = %d > n = %d\n", m, n);
-    exit(0);
+    exit(1);
   }
   if(n < 0 || m < 0) {
     fprintf(stderr, "sindex: n = %d or m = %d negative\n", n, m);
-    exit(0);
+    exit(1);
   }
   if(m == 0) {
     fprintf(stderr, "sindex: attempt to index M%d^0\n", n);
-    exit(0);
+    exit(1);
   }
   return(cterms + m + (n*(n+1))/2 - (n+1));
 }
@@ -156,7 +122,7 @@ int e;				/* exponent, computes i^e */
   if(e == 0) return(1.0);
   if(e % 2 != 0) {
     fprintf(stderr, "iPwr: odd exponent %d\n", e);
-    exit(0);
+    exit(1);
   }
   else {
     e = e/2;			/* get power of negative 1 */
@@ -175,7 +141,7 @@ int x;
   if(x == 0 || x == 1) return(1.0);
   else if(x < 0) {
     fprintf(stderr, "fact: attempt to take factorial of neg no. %d\n", x);
-    exit(0);
+    exit(1);
   }
   else {
     while(x > 1) {

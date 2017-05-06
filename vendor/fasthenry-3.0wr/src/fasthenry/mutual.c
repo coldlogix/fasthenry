@@ -1,45 +1,19 @@
-/*!\page LICENSE LICENSE
- 
-Copyright (C) 2003 by the Board of Trustees of Massachusetts Institute of
-Technology, hereafter designated as the Copyright Owners.
- 
-License to use, copy, modify, sell and/or distribute this software and
-its documentation for any purpose is hereby granted without royalty,
-subject to the following terms and conditions:
- 
-1.  The above copyright notice and this permission notice must
-appear in all copies of the software and related documentation.
- 
-2.  The names of the Copyright Owners may not be used in advertising or
-publicity pertaining to distribution of the software without the specific,
-prior written permission of the Copyright Owners.
- 
-3.  THE SOFTWARE IS PROVIDED "AS-IS" AND THE COPYRIGHT OWNERS MAKE NO
-REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, BY WAY OF EXAMPLE, BUT NOT
-LIMITATION.  THE COPYRIGHT OWNERS MAKE NO REPRESENTATIONS OR WARRANTIES OF
-MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE
-SOFTWARE WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS TRADEMARKS OR OTHER
-RIGHTS. THE COPYRIGHT OWNERS SHALL NOT BE LIABLE FOR ANY LIABILITY OR DAMAGES
-WITH RESPECT TO ANY CLAIM BY LICENSEE OR ANY THIRD PARTY ON ACCOUNT OF, OR
-ARISING FROM THE LICENSE, OR ANY SUBLICENSE OR USE OF THE SOFTWARE OR ANY
-SERVICE OR SUPPORT.
- 
-LICENSEE shall indemnify, hold harmless and defend the Copyright Owners and
-their trustees, officers, employees, students and agents against any and all
-claims arising out of the exercise of any rights under this Agreement,
-including, without limiting the generality of the foregoing, against any
-damages, losses or liabilities whatsoever with respect to death or injury to
-person or damage to property arising from or out of the possession, use, or
-operation of Software or Licensed Program(s) by LICENSEE or its customers.
- 
-*//* this file has some of the functions for mutual and self inductance
+/* this file has some of the functions for mutual and self inductance
    calculation.  The rest are in joelself.c */
 
 #include "induct.h"
 
 /* these are missing in some math.h files */
+#ifndef NO_ATANH
 extern double asinh();
 extern double atanh();
+#else
+double atanh(double x) { return (0.5*log((1.0+x)/(1.0-x))); }
+double asinh(double x) { return (log(x + sqrt(x*x+1))); }
+#endif
+#ifdef NO_ISNAN
+int finite(double x) { return (1); }
+#endif
 
 int realcos_error = 0;
 
@@ -425,11 +399,24 @@ by a distance 1e10 times their length\n");
 */
 
     if ( fabs(d) < EPS )  { /* collinear! */
+      /* SRW -- For whatever reason, the gcc in Red Hat Linux 6.0 can't
+       * evaluate the expression below.  It returns a NaN, which completely
+       * screws up the entire run.  This is a compiler bug.  Breaking it
+       * up a bit seems to have fixed the problem.
+       */
+      /*
       M = MUOVER4PI*(fabs(x2_1 - x1_0)*log(fabs(x2_1 - x1_0))
 	             - fabs(x2_1 - x1_1)*log(fabs(x2_1 - x1_1))
 		     - fabs(x2_0 - x1_0)*log(fabs(x2_0 - x1_0))
 		     + fabs(x2_0 - x1_1)*log(fabs(x2_0 - x1_1)) );
       return M;
+      */
+      M = fabs(x2_1 - x1_0)*log(fabs(x2_1 - x1_0));
+      M -= fabs(x2_1 - x1_1)*log(fabs(x2_1 - x1_1));
+      M -= fabs(x2_0 - x1_0)*log(fabs(x2_0 - x1_0));
+      M += fabs(x2_0 - x1_1)*log(fabs(x2_0 - x1_1));
+      return (MUOVER4PI*M);
+
     }  /* end collinear */
 
     M = MUOVER4PI*(mut_rect(x2_1 - x1_1,d) - mut_rect(x2_1 - x1_0,d) 

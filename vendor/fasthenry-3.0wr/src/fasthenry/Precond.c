@@ -1,38 +1,4 @@
-/*!\page LICENSE LICENSE
- 
-Copyright (C) 2003 by the Board of Trustees of Massachusetts Institute of
-Technology, hereafter designated as the Copyright Owners.
- 
-License to use, copy, modify, sell and/or distribute this software and
-its documentation for any purpose is hereby granted without royalty,
-subject to the following terms and conditions:
- 
-1.  The above copyright notice and this permission notice must
-appear in all copies of the software and related documentation.
- 
-2.  The names of the Copyright Owners may not be used in advertising or
-publicity pertaining to distribution of the software without the specific,
-prior written permission of the Copyright Owners.
- 
-3.  THE SOFTWARE IS PROVIDED "AS-IS" AND THE COPYRIGHT OWNERS MAKE NO
-REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, BY WAY OF EXAMPLE, BUT NOT
-LIMITATION.  THE COPYRIGHT OWNERS MAKE NO REPRESENTATIONS OR WARRANTIES OF
-MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE
-SOFTWARE WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS TRADEMARKS OR OTHER
-RIGHTS. THE COPYRIGHT OWNERS SHALL NOT BE LIABLE FOR ANY LIABILITY OR DAMAGES
-WITH RESPECT TO ANY CLAIM BY LICENSEE OR ANY THIRD PARTY ON ACCOUNT OF, OR
-ARISING FROM THE LICENSE, OR ANY SUBLICENSE OR USE OF THE SOFTWARE OR ANY
-SERVICE OR SUPPORT.
- 
-LICENSEE shall indemnify, hold harmless and defend the Copyright Owners and
-their trustees, officers, employees, students and agents against any and all
-claims arising out of the exercise of any rights under this Agreement,
-including, without limiting the generality of the foregoing, against any
-damages, losses or liabilities whatsoever with respect to death or injury to
-person or damage to property arising from or out of the possession, use, or
-operation of Software or Licensed Program(s) by LICENSEE or its customers.
- 
-*//* This is FastHenry's overlapped preconditioner. It is based on much of the
+/* This is FastHenry's overlapped preconditioner. It is based on much of the
  code from olmulPrcond() from FastCap.  It still contains remnants of the 
  actual FastCap code which could be removed. */
 
@@ -40,6 +6,7 @@ operation of Software or Licensed Program(s) by LICENSEE or its customers.
 is the default.  Most of this code is if'd out for this precond */
 
 #include "induct.h"
+#include "sparse/spMatrix.h"  /* SRW */
 #define PARTMESH OFF    /* this should always be OFF */
 
 /* turn on positive definite preconditioner */
@@ -147,6 +114,7 @@ double w;
   /* open file for dumping Ls? */
   if (indsys->precond_type == SPARSE && (indsys->opts->dumpMats & DUMP_Ls)) {
     concat4(outfname,"Ls",indsys->opts->suffix,".mat");
+    /* SRW -- this is ascii data */
     if ( (fp = fopen(outfname,"w")) == NULL) {
       printf("Couldn't open file\n");
       exit(1);
@@ -480,7 +448,8 @@ double w;
       mark_dup_mesh(Mlist, meshnum, meshsize, is_dup, findx);
       
       if (debug == 1) {
-	fp = fopen("chkinv.mat","w");
+    /* SRW -- this is binary data */
+	fp = fopen("chkinv.mat","wb");
 	if (fp == NULL) {printf("no open\n"); exit(1); }
 	savecmplx(fp, "before", meshmat, meshsize, meshsize);
       }
@@ -772,7 +741,8 @@ char *suffix;
   CALLOC(temprow, cols, double, ON, IND);
 
   concat4(outfname,"Pre",suffix,".mat");
-  fp = fopen(outfname,"w");
+  /* SRW -- this is binary data */
+  fp = fopen(outfname,"wb");
   if (fp == NULL) {
     fprintf(stderr,"Couldn't open Pre\n");
     exit(1);
@@ -916,7 +886,8 @@ double w;
 	meshmat[i][j] = indsys->MtZM[meshnum[i]][meshnum[j]];
 
     if (debug == 1) {
-      fp = fopen("chkinv.mat","w");
+      /* SRW -- this is binary data */
+      fp = fopen("chkinv.mat","wb");
       if (fp == NULL) {printf("no open\n"); exit(1); }
       savecmplx(fp, "before", meshmat, meshsize, meshsize);
     }
