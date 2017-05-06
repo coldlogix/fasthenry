@@ -2,139 +2,159 @@
 /* send it argc and argv from main and a string which is a list of allowed
    option letters.  If the letter is followed by a ':' then it takes an arg */
 
+#include "parse_command_line.h"
+#include "default_opts.h"
+#include "readGeom.h"
 #include "induct.h"
 #include <string.h>
 #ifdef SOLARIS
 #include <sys/systeminfo.h>
 #endif
 
+
 #define GOOD 0
 #define BAD 1
 
-typedef struct _option {
-  char op;       /* the option letter.  op = 'n' for '-n' */
-  char *arg;     /* the argument arg = 'blah' for '-nblah' or '-n blah' */
-  struct _option *next;
-} Option;
 
 /* SRW */
-ind_opts *Parse_Command_Line(int, char**);
-Option *gather_opts(int, char**, char*);
-char *Pmalloc(int);
+Option *gather_opts(SYS*, int, char**, char*);
 int is_in_optstring(char, char*, int*);
 int checkarg(int, int, char**);
 void Describe_Usage(char*);
 int read_on_off(char*, int*);
-void add_to_subset_of_columns(char*, ind_opts*);
+void add_to_subset_of_columns(SYS*, char*, ind_opts*);
 void fix_and_print_opts(ind_opts*);
 
-
-ind_opts *Parse_Command_Line(int argc, char **argv)
+void Parse_Command_Line(SYS* indsys, ind_opts* opts ,int argc, char **argv)
 {
   Option *opt_list;
-  ind_opts *opts;
   int errflag;
-  
-  opts = (ind_opts *)Pmalloc(sizeof(ind_opts));
+
   opt_list =
-    gather_opts(argc, argv, "s:m:p:o:l:f:g:a:d:r:hMk:t:b:c:e:i:D:x:S:R:v");
+    gather_opts(indsys, argc, argv, "s:m:p:o:l:f:g:a:d:r:hMk:t:b:c:e:i:D:x:S:R:v");
 
   /* opts left: */
   /* jnquwyzABCEFGHIJKLNOPQTUVWXYZ */
 
   /* get the default options */
-  default_opts(opts);
+  default_opts(indsys, opts);
 
   errflag = 0;
-  for( ; opt_list != NULL && errflag == 0; opt_list = opt_list->next) {
-    if (opt_list->op != '\0' && opt_list->arg != NULL) 
+  while (opt_list != NULL && errflag == 0)
+  {
+    if (opt_list->op != '\0' && opt_list->arg != NULL)
       tolowercase(opt_list->arg);
-    switch(opt_list->op) {
+    switch(opt_list->op)
+    {
     case 's':
-      if (strncmp(opt_list->arg,"ludecomp",6) == 0) 
-	opts->soln_technique = LUDECOMP;
-      else if (strncmp(opt_list->arg,"iter",4) == 0) 
-	opts->soln_technique = ITERATIVE;
-      /* else if (strncmp(opt_list->arg,"auto",4) == 0) 
+      if (strncmp(opt_list->arg,"ludecomp",6) == 0)
+  	    opts->soln_technique = LUDECOMP;
+      else
+        if (strncmp(opt_list->arg,"iter",4) == 0)
+	      opts->soln_technique = ITERATIVE;
+      /* else if (strncmp(opt_list->arg,"auto",4) == 0)
 	opts->soln_technique = AUTO; */
-      else {
-	fprintf(stderr, "Unknown soln technique: %s\n",opt_list->arg);
-	errflag++;
-      }
-      break;
+        else
+        {
+	      fprintf(stderr, "Unknown soln technique: %s\n",opt_list->arg);
+	      errflag++;
+        }
+    break;
 
     case 'm':
-      if (strncmp(opt_list->arg,"direct",6) == 0) opts->mat_vect_prod = DIRECT;
-      else if (strncmp(opt_list->arg,"multi",5) == 0) opts->mat_vect_prod = MULTIPOLE;
-      /* else if (strncmp(opt_list->arg,"auto",4) == 0) 
+      if (strncmp(opt_list->arg,"direct",6) == 0)
+        opts->mat_vect_prod = DIRECT;
+      else
+        if (strncmp(opt_list->arg,"multi",5) == 0)
+          opts->mat_vect_prod = MULTIPOLE;
+      /* else if (strncmp(opt_list->arg,"auto",4) == 0)
 	 opts->mat_vect_prod = AUTO; */
-      else {
-	fprintf(stderr, "Unknown matrix vector product technique: %s\n",opt_list->arg);
-	errflag++;
-      }
+        else
+        {
+	     fprintf(stderr, "Unknown matrix vector product technique: %s\n",opt_list->arg);
+	     errflag++;
+        }
       break;
 
     case 'p':
-      if (read_on_off(opt_list->arg, &opts->precond) == FALSE) {
-	if (strncmp(opt_list->arg, "loc", 3) == 0) 
-	  opts->precond = LOC;
-	else if (strncmp(opt_list->arg, "sparse", 3) == 0) 
-	  opts->precond = SPARSE;
-	else if (strncmp(opt_list->arg, "cube", 3) == 0) 
-	  opts->precond = SPARSE;
-	else if (strncmp(opt_list->arg, "seg", 3) == 0) 
-	  opts->precond = SEGML;
-	else if (strncmp(opt_list->arg, "diag", 3) == 0) 
-	  opts->precond = DIAGL;
-	else if (strncmp(opt_list->arg, "posdef", 3) == 0) 
-	  opts->precond = POSDEF_LOC;
-	else if (strncmp(opt_list->arg, "shells", 3) == 0) 
-	  opts->precond = SHELLS;
-	else {
-	  fprintf(stderr,"Unknown preconditioner setting: %s\n",opt_list->arg);
-	  errflag++;
-	}
+      if (read_on_off(opt_list->arg, &opts->precond) == FALSE)
+      {
+	    if (strncmp(opt_list->arg, "loc", 3) == 0)
+	      opts->precond = LOC;
+	    else
+	      if (strncmp(opt_list->arg, "sparse", 3) == 0)
+	        opts->precond = SPARSE;
+	      else
+	        if (strncmp(opt_list->arg, "cube", 3) == 0)
+	          opts->precond = SPARSE;
+	        else
+	          if (strncmp(opt_list->arg, "seg", 3) == 0)
+	            opts->precond = SEGML;
+	          else
+	            if (strncmp(opt_list->arg, "diag", 3) == 0)
+	              opts->precond = DIAGL;
+	            else
+	              if (strncmp(opt_list->arg, "posdef", 3) == 0)
+	                opts->precond = POSDEF_LOC;
+	              else
+	                if (strncmp(opt_list->arg, "shells", 3) == 0)
+	                  opts->precond = SHELLS;
+	                else
+	                {
+	                  fprintf(stderr,"Unknown preconditioner setting: %s\n",opt_list->arg);
+	                  errflag++;
+	                }
       }
       break;
 
     case 'o':
-      if (sscanf(opt_list->arg, "%d",&opts->order) != 1) {
-	fprintf(stderr, "Unknown order: %s\n",opt_list->arg);
-	errflag++;
+      if (sscanf(opt_list->arg, "%d",&opts->order) != 1)
+      {
+	    fprintf(stderr, "Unknown order: %s\n",opt_list->arg);
+	    errflag++;
       }
       break;
 
     case 'l':
-      if (strncmp(opt_list->arg, "auto",4) ==0) opts->level = AUTO;
-      else if (sscanf(opt_list->arg, "%d",&opts->level) != 1) {
-	fprintf(stderr, "Unknown level: %s\n",opt_list->arg);
-	errflag++;
-      }
+      if (strncmp(opt_list->arg, "auto",4) ==0)
+        opts->level = AUTO;
+      else
+        if (sscanf(opt_list->arg, "%d",&opts->level) != 1)
+        {
+	      fprintf(stderr, "Unknown level: %s\n",opt_list->arg);
+	      errflag++;
+        }
       break;
 
     case 'f':
-      if (strcmp(opt_list->arg, "off") == 0) opts->makeFastCapFile = OFF;
-      else if (strcmp(opt_list->arg, "simple") == 0) 
-	opts->makeFastCapFile |= SIMPLE;
-      else if (strcmp(opt_list->arg, "refined") == 0) 
-	opts->makeFastCapFile |= REFINED;
-      else if (strcmp(opt_list->arg, "both") == 0) 
-	opts->makeFastCapFile |= BOTH_FCAP;
-      else if (strcmp(opt_list->arg, "hierarchy") == 0)
-	opts->makeFastCapFile |= HIERARCHY;
-      else {
-	fprintf(stderr, "Unknown makeFastCapFile option: %s\n",opt_list->arg);
-	errflag++;
-      }
+      if (strcmp(opt_list->arg, "off") == 0)
+        opts->makeFastCapFile = OFF;
+      else
+        if (strcmp(opt_list->arg, "simple") == 0)
+	      opts->makeFastCapFile |= SIMPLE;
+        else
+          if (strcmp(opt_list->arg, "refined") == 0)
+	        opts->makeFastCapFile |= REFINED;
+          else
+            if (strcmp(opt_list->arg, "both") == 0)
+	          opts->makeFastCapFile |= BOTH_FCAP;
+            else
+              if (strcmp(opt_list->arg, "hierarchy") == 0)
+	            opts->makeFastCapFile |= HIERARCHY;
+              else
+              {
+	            fprintf(stderr, "Unknown makeFastCapFile option: %s\n",opt_list->arg);
+	            errflag++;
+              }
       break;
 
     case 'g':
       if (strcmp(opt_list->arg, "off") == 0) opts->gp_draw = OFF;
-      else if (strcmp(opt_list->arg, "on") == 0) 
+      else if (strcmp(opt_list->arg, "on") == 0)
 	opts->gp_draw = THIN;
-      else if (strcmp(opt_list->arg, "thin") == 0) 
+      else if (strcmp(opt_list->arg, "thin") == 0)
 	opts->gp_draw = THIN;
-      else if (strcmp(opt_list->arg, "thick") == 0) 
+      else if (strcmp(opt_list->arg, "thick") == 0)
 	opts->gp_draw = THICK;
       else {
 	fprintf(stderr, "Unknown ground plane draw setting: %s\n",opt_list->arg);
@@ -143,25 +163,28 @@ ind_opts *Parse_Command_Line(int argc, char **argv)
       break;
 
     case 'a':
-      if (read_on_off(opt_list->arg, &opts->auto_refine) == FALSE) {
-	fprintf(stderr, "Unknown auto_refine setting: %s\n",opt_list->arg);
-	errflag++;
+      if (read_on_off(opt_list->arg, &opts->auto_refine) == FALSE)
+      {
+	    fprintf(stderr, "Unknown auto_refine setting: %s\n",opt_list->arg);
+	    errflag++;
       }
       break;
-      
+
     case 'i':
-      if (sscanf(opt_list->arg, "%d",&opts->init_refine) != 1) {
-	fprintf(stderr, "Unknown initial refinement level: %s\n",
-		opt_list->arg);
-	errflag++;
+      if (sscanf(opt_list->arg, "%d",&opts->init_refine) != 1)
+      {
+	    fprintf(stderr, "Unknown initial refinement level: %s\n",
+		  opt_list->arg);
+	    errflag++;
       }
       break;
-      
+
     case 'r':
-      if (sscanf(opt_list->arg, "%d",&opts->orderROM) != 1) {
-	fprintf(stderr, "Unspecified order for reduced order model: %s\n",
-		opt_list->arg);
-	errflag++;
+      if (sscanf(opt_list->arg, "%d",&opts->orderROM) != 1)
+      {
+	    fprintf(stderr, "Unspecified order for reduced order model: %s\n",
+		  opt_list->arg);
+	    errflag++;
       }
       break;
 
@@ -172,105 +195,118 @@ ind_opts *Parse_Command_Line(int argc, char **argv)
     case 'M':
       opts->onlyROM = 1;
       break;
-      
+
     case 'd':
-      if (strcmp(opt_list->arg, "off") == 0) 
+      if (strcmp(opt_list->arg, "off") == 0)
 	opts->dumpMats = OFF;
-      else if (strcmp(opt_list->arg, "on") == 0) 
+      else if (strcmp(opt_list->arg, "on") == 0)
 	opts->dumpMats |= DUMP_ALL;
-      else if (strcmp(opt_list->arg, "mrl") == 0) 
+      else if (strcmp(opt_list->arg, "mrl") == 0)
 	opts->dumpMats |= MRL;
-      else if (strcmp(opt_list->arg, "mzmt") == 0) 
+      else if (strcmp(opt_list->arg, "mzmt") == 0)
 	opts->dumpMats |= MZMt;
-      else if (strcmp(opt_list->arg, "meshes") == 0) 
+      else if (strcmp(opt_list->arg, "meshes") == 0)
 	opts->dumpMats |= MESHES;
-      else if (strcmp(opt_list->arg, "pre") == 0) 
+      else if (strcmp(opt_list->arg, "pre") == 0)
 	opts->dumpMats |= PRE;
-      else if (strcmp(opt_list->arg, "grids") == 0) 
+      else if (strcmp(opt_list->arg, "grids") == 0)
 	opts->dumpMats |= GRIDS;
-      else if (strcmp(opt_list->arg, "a") == 0) 
+      else if (strcmp(opt_list->arg, "a") == 0)
 	opts->dumpMats |= DUMP_A;
-      else if (strcmp(opt_list->arg, "m") == 0) 
+      else if (strcmp(opt_list->arg, "m") == 0)
 	opts->dumpMats |= DUMP_M;
-      else if (strcmp(opt_list->arg, "rl") == 0) 
+      else if (strcmp(opt_list->arg, "rl") == 0)
 	opts->dumpMats |= DUMP_RL;
-      else if (strcmp(opt_list->arg, "ls") == 0) 
+      else if (strcmp(opt_list->arg, "ls") == 0)
 	opts->dumpMats |= DUMP_Ls;
       else {
 	fprintf(stderr, "Unknown dumpMats option: %s\n",opt_list->arg);
 	errflag++;
       }
       break;
-      
+
     case 'k':
-      if (strcmp(opt_list->arg, "matlab") == 0) 
-	opts->kind = MATLAB;
-      else if (strcmp(opt_list->arg, "text") == 0) 
-	opts->kind = TEXT;
-      else if (strcmp(opt_list->arg, "both") == 0) 
-	opts->kind |= BOTH_TYPES;
-      else {
-	fprintf(stderr, "Unknown kind of dump option: %s\n",opt_list->arg);
-	errflag++;
-      }
+      if (strcmp(opt_list->arg, "matlab") == 0)
+	    opts->kind = MATLAB;
+      else
+        if (strcmp(opt_list->arg, "text") == 0)
+	      opts->kind = TEXT;
+        else
+          if (strcmp(opt_list->arg, "both") == 0)
+	        opts->kind |= BOTH_TYPES;
+          else
+          {
+	        fprintf(stderr, "Unknown kind of dump option: %s\n",opt_list->arg);
+	        errflag++;
+          }
       break;
-      
+
     case 't':
-      if (sscanf(opt_list->arg, "%lf",&opts->tol) != 1) {
-	fprintf(stderr, "Can't interpret tolerance: %s\n",opt_list->arg);
-	errflag++;
+      if (sscanf(opt_list->arg, "%lf",&opts->tol) != 1)
+      {
+	    fprintf(stderr, "Can't interpret tolerance: %s\n",opt_list->arg);
+	    errflag++;
       }
       break;
 
     case 'b':
-      if (sscanf(opt_list->arg, "%lf",&opts->abs_tol) != 1) {
-	fprintf(stderr, "Can't interpret absolute tolerance: %s\n",
+      if (sscanf(opt_list->arg, "%lf",&opts->abs_tol) != 1)
+      {
+	    fprintf(stderr, "Can't interpret absolute tolerance: %s\n",
 		opt_list->arg);
-	errflag++;
+	    errflag++;
       }
       break;
 
     case 'c':
-      if (sscanf(opt_list->arg, "%d",&opts->maxiters) != 1) {
-	fprintf(stderr, "Can't interpret maximum number of iteration: %s\n",
+      if (sscanf(opt_list->arg, "%d",&opts->maxiters) != 1)
+      {
+	    fprintf(stderr, "Can't interpret maximum number of iteration: %s\n",
 		opt_list->arg);
-	errflag++;
+	    errflag++;
       }
       break;
 
     case 'e':
-      if (strncmp(opt_list->arg, "auto",4) ==0) opts->limit = AUTO;
-      else if (sscanf(opt_list->arg, "%d",&opts->limit) != 1) {
-	fprintf(stderr, "Unknown limit: %s\n",opt_list->arg);
-	errflag++;
-      }
-      if (opts->limit == 0) {
-	fprintf(stderr, "Limit must be greater than 0\n");
-	errflag++;
+      if (strncmp(opt_list->arg, "auto",4) ==0)
+        opts->limit = AUTO;
+      else
+        if (sscanf(opt_list->arg, "%d",&opts->limit) != 1)
+        {
+	      fprintf(stderr, "Unknown limit: %s\n",opt_list->arg);
+	      errflag++;
+        }
+      if (opts->limit == 0)
+      {
+	    fprintf(stderr, "Limit must be greater than 0\n");
+	    errflag++;
       }
       break;
 
     case 'D':
-      if (read_on_off(opt_list->arg, &opts->debug) == FALSE) {
-	fprintf(stderr, "Unknown debug setting: %s\n",opt_list->arg);
-	errflag++;
+      if (read_on_off(opt_list->arg, &opts->debug) == FALSE)
+      {
+	    fprintf(stderr, "Unknown debug setting: %s\n",opt_list->arg);
+	    errflag++;
       }
       break;
 
     case 'x':
-      add_to_subset_of_columns(opt_list->arg, opts);
+      add_to_subset_of_columns(indsys, opt_list->arg, opts);
       break;
 
     case 'S':
-       /* this points to a string of argv[] so shouldn't go away */
-      opts->suffix = opt_list->arg;  
+       sysALLOC(opts->suffix,strlen(opt_list->arg)+1,char,ON,IND,indsys,sysAllocTypeGeneric);
+       strcpy(opts->suffix,opt_list->arg);               /* -S */
+
       break;
-      
+
     case 'R':
-      if (sscanf(opt_list->arg, "%lf",&opts->shell_r0) != 1) {
-	fprintf(stderr, "Can't interpret precond shell radius: %s\n",
+      if (sscanf(opt_list->arg, "%lf",&opts->shell_r0) != 1)
+      {
+	    fprintf(stderr, "Can't interpret precond shell radius: %s\n",
                 opt_list->arg);
-	errflag++;
+	    errflag++;
       }
       break;
 
@@ -279,21 +315,27 @@ ind_opts *Parse_Command_Line(int argc, char **argv)
       break;
 
     case '\0':
-      if (opts->fname == NULL) {
-	if (opt_list->arg != NULL) {
-	  opts->fname = opt_list->arg;
-	  /*fprintf(stderr, "Filename after '-' taken as input file\n");*/
-	}
-	else {
-	  opts->fname = "-";
-	  /*fprintf(stderr, "Single '-' not understood\n");
-	  errflag++;*/
-	}
+      if (opts->fname == NULL)
+      {
+	    if (opt_list->arg != NULL)
+	    {
+	       sysALLOC(opts->fname,strlen(opt_list->arg)+1,char,ON,IND,indsys,sysAllocTypeGeneric);
+           strcpy(opts->fname,opt_list->arg);               /* -S */
+	       /*fprintf(stderr, "Filename after '-' taken as input file\n");*/
+	    }
+	    else
+	    {
+         sysALLOC(opts->fname,strlen("-")+1,char,ON,IND,indsys,sysAllocTypeGeneric);
+         strcpy(opts->fname,"-");               /* -S */
+	    /*fprintf(stderr, "Single '-' not understood\n");
+	     errflag++;*/
+	    }
       }
-      else {
-	fprintf(stderr, "Two files specified: %s and %s. Specify only one.\n",
-		opts->fname, opt_list->arg);
-	errflag++;
+      else
+      {
+	    fprintf(stderr, "Two files specified: %s and %s. Specify only one.\n",
+		   opts->fname, opt_list->arg);
+	     errflag++;
       }
       break;
 
@@ -304,64 +346,87 @@ ind_opts *Parse_Command_Line(int argc, char **argv)
       break;
 
     }
+    {
+      Option* topt;
+      topt=opt_list;
+      opt_list = opt_list->next;
+      sysFree(indsys,topt);
+    }
   }
 
-  if (errflag != 0) 
+  if (errflag != 0)
     Describe_Usage(argv[0]);   /* also exits */
 
   fix_and_print_opts(opts);
 
-  return opts;
 }
 
-Option *gather_opts(int argc, char **argv, char *optstring)
+Option *gather_opts(SYS* indsys, int argc, char **argv, char *optstring)
 {
   Option *opt_list = NULL, *opt;
   int len, count, takearg;
 
   count = 1;
 
-  while(count < argc) {
+  while(count < argc)
+  {
+    /* Allocate memory block for option */
+    opt=NULL;
+    sysALLOC(opt,1,Option,ON,IND,indsys,sysAllocTypeOption);
+
     len = strlen(argv[count]);
-    opt = (Option *)Pmalloc(sizeof(Option));
-    if (argv[count][0] == '-') {
-      if (len == 1) {
-	opt->op = '\0';
-	opt->arg = NULL;
-      }
-      else {
-	opt->op = argv[count][1];
-	if (is_in_optstring(opt->op, optstring, &takearg)) {
-	  if (takearg == 1) {
-	    if (len > 2) opt->arg = &argv[count][2];
-	    else {
-	      if(checkarg(count+1, argc, argv) == BAD) {
-		fprintf(stderr, "for option %c\n",opt->op);
-		Describe_Usage(argv[0]);
-	      }
-	      opt->arg = argv[count+1];
-	      count++;
-	    }
-	  }
-	  else {
-	    if (len > 2) {
-	      fprintf(stderr,"%s: option %c does not take an argument\n",
-		      argv[0],opt->op);
-	      Describe_Usage(argv[0]);
-	    }
+    if (argv[count][0] == '-')
+    {
+      if (len == 1)
+      {
+	    opt->op = '\0';
 	    opt->arg = NULL;
-	  }
-	}
-	else {
-	  fprintf(stderr, "%s: Unknown option: %c\n",argv[0],opt->op);
-	  Describe_Usage(argv[0]);
-	}
+      }
+      else
+      {
+	    opt->op = argv[count][1];
+	    if (is_in_optstring(opt->op, optstring, &takearg))
+	    {
+	      if (takearg == 1)
+	      {
+	        if (len > 2)
+	          opt->arg = &argv[count][2];
+	        else
+	        {
+	          if(checkarg(count+1, argc, argv) == BAD)
+	          {
+		        fprintf(stderr, "for option %c\n",opt->op);
+		        Describe_Usage(argv[0]);
+	          }
+	          opt->arg = argv[count+1];
+	          count++;
+	        }
+	      }
+	      else
+	      {
+	        if (len > 2)
+	        {
+	          fprintf(stderr,"%s: option %c does not take an argument\n",
+		        argv[0],opt->op);
+	          Describe_Usage(argv[0]);
+	        }
+	        opt->arg = NULL;
+	      }
+ 	    }
+	    else
+	    {
+	      fprintf(stderr, "%s: Unknown option: %c\n",argv[0],opt->op);
+	      Describe_Usage(argv[0]);
+ 	    }
       }
     }
-    else {
+    else
+    {
       opt->op = '\0';
       opt->arg = argv[count];
     }
+
+    /* Link in the chain*/
     opt->next = opt_list;
     opt_list = opt;
     count++;
@@ -370,27 +435,13 @@ Option *gather_opts(int argc, char **argv, char *optstring)
   return opt_list;
 }
 
-char *Pmalloc(int size)
-{
-  char *blah;
-
-  blah = (char *)malloc(size);
-
-  if (blah == NULL) {
-    fprintf(stderr, "Pmalloc: out of space trying to get %d bytes\n",size);
-    exit(1);
-  }
-
-  return blah;
-}
-
 int is_in_optstring(char op, char *string, int *takearg)
 {
   char *pos;
 
   pos = strchr(string, op);
 
-  if (pos == NULL) 
+  if (pos == NULL)
     return 0;
   else {
     if (pos[1] == ':') *takearg = 1;
@@ -411,13 +462,13 @@ int checkarg(int index, int argc, char **argv)
     fprintf(stderr,"Need an argument ");
     return BAD;
   }
-  
+
   return GOOD;
 }
 
 void Describe_Usage(char *name)
 {
-  fprintf(stderr, 
+  fprintf(stderr,
 "Usage: %s [<input file>] [<Options>]\n",name);
 
 
@@ -473,7 +524,7 @@ void Describe_Usage(char *name)
   -v                          = Regurgitate internal representation to stdout.\n \
                                 Good for seeing what FastHenry thinks it read.\n \
 ");
-  
+
   exit(1);
 }
 
@@ -495,25 +546,27 @@ int read_on_off(char *str, int *on_off)
   if(strcmp(str, "on") == 0) *on_off = ON;
   else if (strcmp(str, "off") == 0) *on_off = OFF;
   else return FALSE;
-  
+
   return TRUE;
 }
 
-void add_to_subset_of_columns(char *str, ind_opts *opts)
+void add_to_subset_of_columns(SYS* indsys, char *str, ind_opts *opts)
 {
   strlist *oneport;
 
   tolowercase(str);
-  oneport = (strlist *)Pmalloc(sizeof(strlist));
 
-  oneport->str = (char *)Pmalloc(sizeof(char)*strlen(str)+1);
+  oneport=NULL;
+  sysALLOC(oneport,1,strlist,ON,IND,indsys,sysAllocTypestrlist);
+
+  sysALLOC(oneport->str,strlen(str)+1,char,ON,IND,indsys,sysAllocTypeGeneric);
   strcpy(oneport->str, str);
 
   oneport->next = opts->portlist;
-    
+
   opts->portlist = oneport;
 }
-      
+
 void fix_and_print_opts(ind_opts *opts)
 {
   time_t clock;
@@ -556,7 +609,7 @@ void fix_and_print_opts(ind_opts *opts)
   }
   else {
     printf("Solution technique: ITERATIVE\n");
-    if (opts->mat_vect_prod == DIRECT) 
+    if (opts->mat_vect_prod == DIRECT)
       printf("Matrix vector product method: DIRECT\n");
     else {
       printf("Matrix vector product method: MULTIPOLE\n");
@@ -568,5 +621,5 @@ void fix_and_print_opts(ind_opts *opts)
       printf("Preconditioner: OFF\n");
     printf("Error tolerance: %lg\n",opts->tol);
   }
-  
+
 }

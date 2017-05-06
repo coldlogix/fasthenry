@@ -1,8 +1,16 @@
 #include<stdio.h>
 #include<string.h>
 #include<math.h>
-#include "induct.h"
+
+/* Global definition */
+#include "addgroundplane.h"
+
+/* local definition */
 #include "gp.h"
+#include "findpaths.h"
+#include "readGeom.h"
+#include "savemat_mod.h"
+#include "memmgmt.h"
 
 #define PIOVER2 1.570796327
 
@@ -14,31 +22,18 @@ double innerproduct(int, int, int, int, double*, double*, double*);
 double findangle(int, int, int, int, double*, double*, double*);
 void order(int*, int*);
 void bubblesort(int*, int);
-int checkmiddlepoint(double*, double*, double*, int, int, int);
-int checkplaneformula(double*, double*, double*, double, double, double,
-    int, int, int);
-double findsegmentwidth(double*, double*, double*, int, int, int, int);
-void doincrement(double, double, double, double, double, double, int,
-    double*, double*, double*);
-void dounitvector(double, double, double, double, double, double,
-    double*, double*, double*);
-void fillgrids(GROUNDPLANE*);
-void make_nodelist(NODELIST*, char*, double, double, double);
+void fillgrids(SYS* indsys, GROUNDPLANE*);
 double find_coordinate(GROUNDPLANE*, double, double, double, int);
 void findrefnodes(GROUNDPLANE*, NODES*, NODES*, int*, int*, int*, int*);
-SPATH *old_path_through_gp(NODES*, NODES*, GROUNDPLANE*);
+SPATH *old_path_through_gp(SYS*, NODES*, NODES*, GROUNDPLANE*);
 /*
 void makenpath(SEGMENT*, NODES*);
 */
-MELEMENT **old_makeMlist(GROUNDPLANE*, int*, double**, int);
-SPATH *path_through_gp(NODES*, NODES*, GROUNDPLANE*);
-SPATH *get_a_path(NODES*, NODES*, GROUNDPLANE*, NPATH*, int, int);
+MELEMENT **old_makeMlist(SYS*, GROUNDPLANE*, int*, double**, int);
+SPATH *get_a_path(SYS*, NODES*, NODES*, GROUNDPLANE*, NPATH*, int, int);
 void sort_choices(choice_list*, int);
-void clear_marks(SYS*);
 void increment_usage(SEGMENT*);
-void dump_mesh_coords(SYS*);
-void dump_ascii_mesh_coords(SYS*);
-void **Make_C_array(void*, int, int, int);
+void **Make_C_array(SYS*, void*, int, int, int);
 int add_choice(choice_list*, NPATH*, SEGMENT*, NODES*, int, int, int, int, int);
 void clear_plane_marks(GROUNDPLANE*);
 
@@ -48,7 +43,7 @@ void clear_plane_marks(GROUNDPLANE*);
 double square(double x)
 {
   double val;
-  
+
   val = x * x;
   return val;
 }
@@ -100,15 +95,15 @@ double innerproduct(int p1, int p2, int p3, int p4,
 double findangle(int p1, int p2, int p3, int p4,
     double *x, double *y, double *z)
 {
-  
+
   double temp1, temp2, temp3, value;
 
   temp1 = innerproduct(p1,p2,p3,p4,x, y, z);
   temp2 = lengthof(p1,p2,x, y, z);
   temp3 = lengthof(p3,p4,x, y, z);
-  
+
   value = acos((temp1/(temp2 * temp3)));
- 
+
   return value;
 }
 
@@ -118,7 +113,7 @@ double findangle(int p1, int p2, int p3, int p4,
 void order(int *p, int *q)
 {
   int temp;
-  
+
   if(abs(*p) > abs(*q)){
     temp = *p;
     *p = *q;
@@ -147,15 +142,15 @@ int checkmiddlepoint(double *x, double *y, double *z, int o1, int o2, int mid)
   double temp1, temp2, temp3;
   int to1, to2, tmid;
   int value;
-  
+
   temp1 = PIOVER2 - (findangle(o1,mid, o1, o2, x, y, z));
   temp2 = PIOVER2 - (findangle(o1, mid, mid, o2, x, y, z));
-  temp3 = PIOVER2 - (findangle(o1, o2, o2, mid, x, y, z)); 
+  temp3 = PIOVER2 - (findangle(o1, o2, o2, mid, x, y, z));
 
   if((fabs(temp1) < fabs(temp2)) && (fabs(temp1) < fabs(temp3))){
     tmid = 0; to1 = 1; to2 = 2;}
   else if((fabs(temp2) < fabs(temp3)) && (fabs(temp2) < fabs(temp1))){
-    tmid = 1; to1 = 0; to2 = 2;} 
+    tmid = 1; to1 = 0; to2 = 2;}
   else {
     tmid = 2; to1 = 0; to2 = 1;}
 
@@ -163,7 +158,7 @@ int checkmiddlepoint(double *x, double *y, double *z, int o1, int o2, int mid)
     return 1;
   else
     return 0;
- 
+
 }
 
 /* function that checks if the given coordinates satisfy the equation of the */
@@ -173,11 +168,11 @@ int checkplaneformula(double *xcord, double *ycord, double *zcord,
 {
   double xpart, ypart, zpart, value;
   double equation;
-  
+
   xpart = ((ycord[o1] - ycord[mid])*(zcord[o2] - zcord[mid])) -
     ((zcord[o1] - zcord[mid])*(ycord[o2] - ycord[mid]));
 
-  ypart = ((zcord[o1] - zcord[mid])*(xcord[o2] - xcord[mid])) - 
+  ypart = ((zcord[o1] - zcord[mid])*(xcord[o2] - xcord[mid])) -
     ((xcord[o1] - xcord[mid])*(zcord[o2] - zcord[mid]));
 
   zpart = ((xcord[o1] - xcord[mid])*(ycord[o2] - ycord[mid])) -
@@ -187,7 +182,7 @@ int checkplaneformula(double *xcord, double *ycord, double *zcord,
 
   equation = ( xpart * x) + (ypart * y) + (zpart * z);
 
-  if (fabs(value - equation)/(xpart*xpart+ypart*ypart+zpart*zpart+1e-200) 
+  if (fabs(value - equation)/(xpart*xpart+ypart*ypart+zpart*zpart+1e-200)
       < EPS) {
     return 1;
   } else {
@@ -195,14 +190,14 @@ int checkplaneformula(double *xcord, double *ycord, double *zcord,
     return 0;
   }
 }
- 
+
 /* function that finds the width of a segment given its coordinates and the */
 /* dimensions of a plane.                                                   */
 double findsegmentwidth(double *x, double *y, double *z, int mid,
     int o1, int o2, int dim)
 {
   double value, theta, temp1;
-  
+
   theta = findangle(mid, o1, mid, o2, x, y, z);
   temp1 = lengthof(mid, o1, x, y, z);
 
@@ -236,7 +231,7 @@ void dounitvector(double x, double y, double z, double xi, double yi, double zi,
 /*---------------------------MISCELLANEOUS FUNCTIONS-------------------------*/
 /* function that lays out and stores the grid matrix of a groundplane for use*/
 /* in Matlab.(grids are used to visualize the current distribution in a plane*/
-void fillgrids(GROUNDPLANE *plane)
+void fillgrids(SYS* indsys, GROUNDPLANE *plane)
 {
   int rows, cols, i, j;
   int filnumber;
@@ -244,11 +239,11 @@ void fillgrids(GROUNDPLANE *plane)
 
   cols = plane->seg2 + 1;
   rows = plane->seg1 + 1;
-  plane->row[0] = rows; 
+  plane->row[0] = rows;
   plane->col[0] = cols;
 
   /* allocate the space */
-  plane->grid1 = (double **)MatrixAlloc(rows, cols, sizeof(double));
+  plane->grid1 = (double **)sysMatrixAlloc(indsys, rows, cols, sizeof(double));
 
   for(i = 0; i < cols; i++){
     for(j = 1; j < rows; j++){
@@ -263,15 +258,15 @@ void fillgrids(GROUNDPLANE *plane)
   rows = plane->seg1 + 1;
   plane->row[1] = rows;
   plane->col[1] = cols;
-  
+
   /* allocate the space for grid2 */
-  plane->grid2 = (double **)MatrixAlloc(rows, cols, sizeof(double));
+  plane->grid2 = (double **)sysMatrixAlloc(indsys, rows, cols, sizeof(double));
 
   for(i = 0; i < (cols - 1); i++){
     for(j = 0; j < rows; j++){
       seg = plane->segs2[j][i];
       filnumber = seg->filaments[0].filnumber;
-      
+
       plane->grid2[j][i] = (double)filnumber + 1.0;
     }
   }
@@ -297,19 +292,19 @@ double find_coordinate(GROUNDPLANE *plane, double x, double y, double z,
     ((plane->x[0] - plane->x[1])*(plane->z[2] - plane->z[1]));
   zpart = ((plane->x[0] - plane->x[1])*(plane->y[2] - plane->y[1])) -
     ((plane->y[0] - plane->y[1])*(plane->x[2] - plane->x[1]));
-  
+
   value = xpart*plane->x[1] + ypart*plane->y[1] + zpart*plane->z[1];
- 
+
   if(flag == 0){                           /* need to find the x_coordinate */
     equation = ypart*y + zpart*z;
     divpart = xpart;
-  } 
+  }
   else if(flag == 1){                      /* need to find the y_coordinate */
-    equation = xpart*x + zpart*z; 
+    equation = xpart*x + zpart*z;
     divpart = ypart;
-  } 
+  }
   else if(flag == 2){                      /* need to find the z_coordinate */
-    equation = xpart*x + ypart*y; 
+    equation = xpart*x + ypart*y;
     divpart = zpart;
   } else {
     printf("flag does not match coordinates \n");
@@ -324,7 +319,7 @@ double find_coordinate(GROUNDPLANE *plane, double x, double y, double z,
   }
 
 }
- 
+
 void findrefnodes(GROUNDPLANE *plane, NODES *begnode, NODES *endnode,
     int *b0, int *b1, int *e0, int *e1)
 {
@@ -350,7 +345,7 @@ void findrefnodes(GROUNDPLANE *plane, NODES *begnode, NODES *endnode,
   }
 }
 
-SPATH *old_path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
+SPATH *old_path_through_gp(SYS* indsys, NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
 {
   int deco1, deco2, counter1, counter2;
   int b0, b1, e0, e1, i, bc0, bc1, ec0,ec1;
@@ -367,7 +362,7 @@ SPATH *old_path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
     printf("nodes not in the groundplane !! \n");
     exit(1);
   }
- 
+
   tempnode = find_nearest_gpnode(nodein->x, nodein->y, nodein->z, plane, &bc0, &bc1);
   tempnode = find_nearest_gpnode(nodeout->x, nodeout->y, nodeout->z, plane, &ec0, &ec1);
 
@@ -378,8 +373,9 @@ SPATH *old_path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
     ;
   else
     printf("find_nearest_gpnode failed!!!\n");
-  
-  path = (SPATH *)MattAlloc(1, sizeof(SPATH));         /* allocate the space */
+
+  path=NULL;
+  sysALLOC(path,1,SPATH,ON,IND,indsys,sysAllocTypeSpath);
   tpath = path;
   tpath->next = NULL;
 
@@ -389,15 +385,15 @@ SPATH *old_path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
   counter2 = b1 + (deco2 > 0 ? 0.0 : -1.0);
 
   for(i = 0; i < abs(deco1); i++){            /* segments from input to (o1) */
-    
+
     pathpointer = tpath;                       /* pointer to previous path */
 
     tempseg = plane->segs1[counter1][b1];
     tempseg_ptr.segp = (void *)tempseg;
     tpath->seg = tempseg_ptr;                              /* assign the seg to the path */
     counter1 = counter1 + (deco1 > 0 ? 1.0 : -1.0);
-    
-    tpath->next = (SPATH *)MattAlloc(1, sizeof(SPATH));
+
+    sysALLOC(tpath->next,1,SPATH,ON,IND,indsys,sysAllocTypeSpath);
     tpath = tpath->next;
 
   }
@@ -415,7 +411,7 @@ SPATH *old_path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
   }
 
   for(i = 0; i < abs(deco2); i++){              /* segments from output to (o2) */
-    
+
     pathpointer = tpath;
 
     tempseg = plane->segs2[e0][counter2];
@@ -423,7 +419,7 @@ SPATH *old_path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
     tpath->seg = tempseg_ptr;                             /* assing the seg to the path */
     counter2 = counter2 + (deco2 > 0 ? 1.0 : -1.0);
 
-    tpath->next = (SPATH *)MattAlloc(1,sizeof(SPATH));
+    sysALLOC(tpath->next,1,SPATH,ON,IND,indsys,sysAllocTypeSpath);
     tpath = tpath->next;
   }
 
@@ -477,7 +473,7 @@ void makenpath(SEGMENT *seg, NODES *node)
 
 /* makes the Mlist for the groundplane given a plane and parameters defining */
 /* the current location of the overall Mlist.                                */
-MELEMENT **old_makeMlist(GROUNDPLANE *plane, int *checksegs, double **M,
+MELEMENT **old_makeMlist(SYS* indsys, GROUNDPLANE *plane, int *checksegs, double **M,
     int mesh)
 {
   MELEMENT **pMlist, *melem, *melem2;
@@ -491,19 +487,24 @@ MELEMENT **old_makeMlist(GROUNDPLANE *plane, int *checksegs, double **M,
   counter = 0;
   tempmesh = mesh;
 
-  pMlist = (MELEMENT **)MattAlloc(plane->numesh, sizeof(MELEMENT *));
-  loop = (int *)MattAlloc(4, sizeof(int));
-  loopfils = (FILAMENT **)MattAlloc(4, sizeof(FILAMENT *));
+  pMlist=NULL;
+  loopfils=NULL;
+  loop=NULL;
+  sysALLOC(pMlist,plane->numesh,MELEMENT*,ON,IND,indsys,sysAllocTypePtrArray);
+  sysALLOC(loop,4,int,ON,IND,indsys,sysAllocTypeGeneric);
+  sysALLOC(loopfils,4,FILAMENT*,ON,IND,indsys,sysAllocTypePtrArray);
 
-  for(i = 0; i < plane->seg2; i++){
-    for(j = 0; j < plane->seg1; j++){
-      
+  for(i = 0; i < plane->seg2; i++)
+  {
+    for(j = 0; j < plane->seg1; j++)
+    {
+
       node = plane->pnodes[j][i];
       plusnode = node->number;            /* initialize plusnode */
 
       for(k = 0; k < 4; k++){
 	switch (k) {
-	  
+
 	case 0:
 	  seg = plane->segs1[j][i];
 	  signofelem = -1.0;
@@ -526,13 +527,15 @@ MELEMENT **old_makeMlist(GROUNDPLANE *plane, int *checksegs, double **M,
 	checksegs[number] = 1;             /* add to checksegs */
 	                           /* MK 9/92: took out += 1 */
 
-	for(n = 1; n < seg->num_fils; n++, tempmesh++){
-	  melem = pMlist[tempmesh] = (MELEMENT *)MattAlloc(1, sizeof(MELEMENT));
+	for(n = 1; n < seg->num_fils; n++, tempmesh++)
+    {
+      sysALLOC(melem,1,MELEMENT,ON,IND,indsys,sysAllocTypeMElement);
+      pMlist[tempmesh] = melem;
 	  melem->filindex = seg->filaments[n-1].filnumber;
 	  melem->fil = &seg->filaments[n-1];
 	  melem->sign = 1;
-	  melem->mnext = (MELEMENT *)MattAlloc(1, sizeof(MELEMENT));
-	  
+      sysALLOC(melem->mnext,1,MELEMENT,ON,IND,indsys,sysAllocTypeMElement);
+
 	  melem = melem->mnext;
 	  melem->filindex = seg->filaments[n].filnumber;
 	  melem->fil = &seg->filaments[n];
@@ -548,7 +551,7 @@ MELEMENT **old_makeMlist(GROUNDPLANE *plane, int *checksegs, double **M,
       /* put out pMlist */
       for(k = 0; k < 4; k++){
 /*	M[abs(loop[k]) - 1][tempmesh] += (loop[k] > 0 ? 1.0 : -1.0); */
-	melem = (MELEMENT *)MattAlloc(1, sizeof(MELEMENT));
+    sysALLOC(melem,1,MELEMENT,ON,IND,indsys,sysAllocTypeMElement);
 	melem->filindex = abs(loop[k]) - 1;
 	melem->fil = loopfils[k];               /* assign filament pointer */
 	melem->sign = (loop[k] > 0 ? 1.0 : -1.0);
@@ -584,12 +587,12 @@ MELEMENT **old_makeMlist(GROUNDPLANE *plane, int *checksegs, double **M,
   return pMlist;
 }
 
-SPATH *path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
+SPATH *path_through_gp(SYS* indsys, NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
 {
   SPATH *path;
 
 #ifdef OLD_PATH
-  return old_path_through_gp(nodein, nodeout, plane);
+  return old_path_through_gp(indsys, nodein, nodeout, plane);
 #endif
 
   if((nodein->gp != plane) || (nodeout->gp != plane)){
@@ -597,13 +600,13 @@ SPATH *path_through_gp(NODES *nodein, NODES *nodeout, GROUNDPLANE *plane)
     exit(1);
   }
 
-  if (is_nonuni_gp(plane)) 
-    path = path_through_nonuni_gp(nodein, nodeout, plane);
+  if (is_nonuni_gp(plane))
+    path = path_through_nonuni_gp(indsys,nodein, nodeout, plane);
   else {
     /* we will use node->examined to mark if each node of a failed path */
     clear_plane_marks(plane);
 
-    path = get_a_path(nodein, nodeout, plane, NULL, 0, 0);
+    path = get_a_path(indsys,nodein, nodeout, plane, NULL, 0, 0);
   }
 
   if (path == NULL) {
@@ -623,7 +626,7 @@ This may be due to \n\
 
 /* this returns a path from node to node_goal.  It takes one step and then
    calls itself recursively.  */
-SPATH *get_a_path(NODES *node, NODES *node_goal, GROUNDPLANE *plane,
+SPATH *get_a_path(SYS* indsys,NODES *node, NODES *node_goal, GROUNDPLANE *plane,
     NPATH *nodes_so_far, int s1_momentum, int s2_momentum)
 {
 #define MAXchoices 4
@@ -671,28 +674,28 @@ SPATH *get_a_path(NODES *node, NODES *node_goal, GROUNDPLANE *plane,
   sort_choices(choices, nchoices);
 
   /* add current node to list of passed through nodes */
-  nodes_so_far = add_node_to_list(node, nodes_so_far);
+  nodes_so_far = add_node_to_list(indsys,node, nodes_so_far);
 
   for(path = NULL, i = 0; path == NULL && i < nchoices; i++) {
     sptr.segp = (void *)choices[i].seg;
     if (node_goal == choices[i].node) {
-      path = add_seg_to_list(sptr, path);
+      path = add_seg_to_list(indsys,sptr, path);
       increment_usage(choices[i].seg);
     }
     else {
       /* call myself with next node */
-      path = get_a_path(choices[i].node, node_goal, plane, nodes_so_far,
+      path = get_a_path(indsys, choices[i].node, node_goal, plane, nodes_so_far,
 			choices[i].s1_mom, choices[i].s2_mom);
       if (path != NULL) {
 	/* there is a path, so lets add this seg to it */
-	path = add_seg_to_list(sptr,path);
+	path = add_seg_to_list(indsys, sptr,path);
 	increment_usage(choices[i].seg);
       }
     }
   }
 
   /* free this node */
-  free(nodes_so_far);
+  sysFree(indsys,nodes_so_far);
 
   if (path == NULL)
     /* mark it is a node from which no path was found */
@@ -715,7 +718,7 @@ void sort_choices(choice_list *choices, int num)
 	choices[j] = temp;
       }
 }
-	
+
 void clear_marks(SYS *indsys)
 {
   SEGMENT *seg;
@@ -756,9 +759,8 @@ void dump_mesh_coords(SYS *indsys)
 #endif
 
   nmeshes = indsys->tree_meshes;
-
-  temp = (double *)Gmalloc(buffer_rows*buffer_cols*sizeof(double));
-  line_list = (double **)Make_C_array(temp, buffer_rows, buffer_cols, 
+  sysALLOC(temp,buffer_rows*buffer_cols,double,ON,IND,indsys,sysAllocTypeGeneric);
+  line_list = (double **)Make_C_array(indsys, temp, buffer_rows, buffer_cols,
 				      sizeof(double));
 
   counter = 0;
@@ -782,12 +784,14 @@ void dump_mesh_coords(SYS *indsys)
 
   for(i = counter; i < buffer_rows; i++)
     line_list[i][3] = 0;
-  
-  savemat_mod(fp, j + 100, "meshes", buffer_rows, buffer_cols, 0, 
-	      line_list[0], (double *)NULL, 0, 
+
+  savemat_mod(fp, j + 100, "meshes", buffer_rows, buffer_cols, 0,
+	      line_list[0], (double *)NULL, 0,
 	      buffer_rows*buffer_cols);
 
   fclose(fp);
+
+
 
 }
 
@@ -830,18 +834,19 @@ void dump_ascii_mesh_coords(SYS *indsys)
 
 }
 
-/* This makes a chunk of memory look like a doubly subscripted C array. 
-   It takes a continuous chunk of memory  of size rows*cols*size bytes, 
+/* This makes a chunk of memory look like a doubly subscripted C array.
+   It takes a continuous chunk of memory  of size rows*cols*size bytes,
    beginning at 'start',
-   and returns an array of pointers to the beginning of each row.  
+   and returns an array of pointers to the beginning of each row.
 */
-void **Make_C_array(void *start, int rows, int cols, int size)
+void **Make_C_array(SYS* indsys, void *start, int rows, int cols, int size)
 {
   char **ptr;
   int i;
 
-  ptr = (char **)Gmalloc(rows*sizeof(char *));
-  
+  ptr=NULL;
+  sysALLOC(ptr,rows,char*,ON,IND,indsys,sysAllocTypePtrArray);
+
   if (sizeof(char) != 1) {
     fprintf(stderr,"oops");
     exit(1);
@@ -866,7 +871,7 @@ int add_choice(choice_list *choice, NPATH *nodes_so_far, SEGMENT *seg,
   static int against_momentum = 1;
 
   int with_momentum = new_s1_mom*s1_momentum + new_s2_mom*s2_momentum;
-  
+
   if (seg != NULL && !is_orignode_in_list(node, nodes_so_far)
       && node->examined == 0) {
     choice->seg = seg;
@@ -887,7 +892,7 @@ int add_choice(choice_list *choice, NPATH *nodes_so_far, SEGMENT *seg,
       if (is_right_direction == 0)
 	/* not completely the wrong way */
 	choice->rank += half_wrong_way;
-      
+
       choice->rank += (choice->seg->is_deleted)*overlap;
     }
 
@@ -896,7 +901,7 @@ int add_choice(choice_list *choice, NPATH *nodes_so_far, SEGMENT *seg,
   else
     return 0;
 }
-    
+
 void clear_plane_marks(GROUNDPLANE *plane)
 {
   int i,j;

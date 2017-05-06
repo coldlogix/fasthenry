@@ -49,12 +49,12 @@ typedef struct llist {
   struct llist *next;
 } Llist;
 
-/*   
+/*
    In FastHenry 2.0, a plane was a grid of segments in both x and y where
    the four segments making a square we call a 'cell'.
    Now let's assume our plane is made up of a grid of these cells, and
    now we allow a cell to be broken into subcells in a hierarchical fashion
-   for nonuniform discretizations */ 
+   for nonuniform discretizations */
 
 typedef struct nonuni_gp {
   struct gcell *root_cell;  /* root of the discretization tree */
@@ -73,20 +73,20 @@ typedef struct nonuni_gp {
   /* The plane axis directions */
   double ux_x, ux_y, ux_z;            /* ux=unit vector along gp x direction */
   double uy_x, uy_y, uy_z;            /* uy=unit vector along gp y direction */
-  /* So, given plane coords (xp,yp), real coord is:  
+  /* So, given plane coords (xp,yp), real coord is:
      origin_p + xp * ux + yp * uy    */
-  
+
   double uz_x, uz_y, uz_z;            /* unit vector along gp z dir */
   /*double thickness; */
-  
+
   /* describe discretization in z direction */
-  int num_z_pts;   
+  int num_z_pts;
   double *z_pts;   /*on the interval [0,1] describe where points should be*/
 
        /* so if num_z_pts = 3,  there will be 3 layers of x-y segs and two
 	  zdirected segments connecting the layers.  Example:
           z_pts[0] = 0, z_pts[1] = 0.5, z_pts[2] = 1, then the z-directed
-	  segments will go from 0 - 0.5, and 0.5 - 1. where 0 is 
+	  segments will go from 0 - 0.5, and 0.5 - 1. where 0 is
 	  the bottom.
        */
 
@@ -105,12 +105,12 @@ typedef struct nonuni_gp {
 
 } Nonuni_gp;
 
-/* hierarchal cells to represent a nonuniformly discretized plane of 
+/* hierarchal cells to represent a nonuniformly discretized plane of
    material. */
 
 /* a node in the tree */
 typedef struct gcell {
-  
+
   int index;            /* an index for debugging */
   void *children;       /* a pointer to a structure representing the subcells*/
   char children_type;    /* what is the structure for the children */
@@ -143,9 +143,9 @@ typedef struct gcell {
   the info in a tree like fashion */
 
 typedef struct g_edges {
-  
+
   struct gcell *cells[NUM_E_CELLS]; /* cells for which this is a boundary */
-  char dirs[NUM_E_CELLS];           /* which direction this edge is within 
+  char dirs[NUM_E_CELLS];           /* which direction this edge is within
 				    corresponding cell */
 
   /* a pointer to a structure holding children making up this edge
@@ -158,10 +158,10 @@ typedef struct g_edges {
 } G_edges;
 
 typedef struct g_nodes {
-  
+
   int index;      /* an index for debugging */
   double x, y;
-  
+
   struct gcell *cells[NUM_N_CELLS];
 
   /* need all four because of z-directed segs */
@@ -170,7 +170,7 @@ typedef struct g_nodes {
   char flag;          /* flag to mark things */
 
   double x_shift, y_shift; /* shift for center of z-directed segments */
-  
+
   /* the number of segs is determined by gp->num_z_pts */
   SEGMENT **e_segs;  /* array of segs in east direction */
   SEGMENT **n_segs;  /* in north direction */
@@ -201,7 +201,7 @@ typedef struct quad {
 
 /* a 2d array of children */
 typedef struct grid_2d {
-  
+
   struct gcell ***kids;
   int x_cells, y_cells;
 
@@ -236,7 +236,7 @@ typedef struct _nonuni_choice_list {
 			 else\
 			   fprintf(fp, "%d ", (ptr)->index);}
 
-/* #ifndef _GP_GLOBAL 
+/* #ifndef _GP_GLOBAL
    #define _GP_GLOBAL
    int opposite[4] = {SW, NW, NE, SE}
    #else
@@ -250,13 +250,13 @@ typedef struct _nonuni_choice_list {
 /* SRW -- prototypes */
 
 /* contact.c */
-ContactList *make_contactlist(ContactList*, char*, double, double, double,
+ContactList *make_contactlist(SYS*, ContactList*, char*, double, double, double,
     double, int*);
 // void contact_error(char*, char*, ContactList*);
 // void contact_error2(char*, char*, char*);
 // void contact_warning(char*, ContactList*);
 // void regurg_contact(FILE*, ContactList*);
-void make_contacts(ContactList*, Nonuni_gp*);
+void make_contacts(SYS*, ContactList*, Nonuni_gp*);
 // void contact_point(ContactList*, Nonuni_gp*, double, double, double, double);
 // void contact_line(ContactList*, Nonuni_gp*, double, double, double, double);
 // void walk_along_line(double, double, double, double, double, double,
@@ -290,7 +290,7 @@ void make_contacts(ContactList*, Nonuni_gp*);
 // void contact_equiv_rect(ContactList*, Nonuni_gp*, double, double, double,
 //     double);
 // void make_equiv_rect(double, double, double, double, double, Nonuni_gp*,
-//     char*); 
+//     char*);
 // void walk_along_edge(double, double, double, double, Nonuni_gp*, char,
 //     NODES*, char*, double);
 // void equiv_nodes_on_edge(G_nodes*, char, G_nodes*, NODES*, Nonuni_gp*,
@@ -317,7 +317,7 @@ void make_contacts(ContactList*, Nonuni_gp*);
 // Gcell *pick_cell_based_on_vec(G_nodes*, double, double);
 
 /* find_nonuni_path.c */
-SPATH *path_through_nonuni_gp(NODES*, NODES*, GROUNDPLANE*);
+SPATH *path_through_nonuni_gp(SYS*, NODES*, NODES*, GROUNDPLANE*);
 // void clear_nonuni_marks(G_nodes*);
 // G_nodes *find_nearest_nonuni_node(double, double, double, Nonuni_gp*);
 // SPATH *get_a_nonuni_path(G_nodes*, G_nodes*, Nonuni_gp*, Llist*);
@@ -334,7 +334,7 @@ int is_in_cell(double, double, Gcell*);
 G_nodes *scan_edge(double, double, G_nodes*, char);
 // double get_node_dist(double, double, G_nodes*);
 // double get_dist(double, double);
-int make_nonuni_Mlist(GROUNDPLANE*, MELEMENT**);
+int make_nonuni_Mlist(SYS*, GROUNDPLANE*, MELEMENT**);
 // void make_children_meshes(Gcell*, MELEMENT**, int*);
 // void make_grid_children_meshes(Grid_2d*, MELEMENT**, int*);
 // int make_leaf_mesh(Gcell*, MELEMENT**);
@@ -344,7 +344,7 @@ NODES *get_or_make_nearest_node(char*, int, double, double, double, SYS*,
 NODES *make_new_node_with_nonuni(G_nodes*, char*, int, double, double, double,
     SYS*, Nonuni_gp*);
 NODES *get_nonuni_node_from_list(G_nodes*, NPATH*);
-Llist *get_nodes_inside_rect(double, double, double, double, Gcell*, Llist**);
+Llist *get_nodes_inside_rect(SYS*, double, double, double, double, Gcell*, Llist**);
 // Llist *bi_get_nodes_inside_rect(double, double, double, double, Gcell*,
 //     Llist**);
 // Llist *grid_get_nodes_inside_rect(double, double, double, double, Gcell*,
@@ -353,10 +353,10 @@ Llist *get_nodes_inside_rect(double, double, double, double, Gcell*, Llist**);
 // int intersection(double, double, double, double, double, double, double,
 //     double);
 // Llist *which_nodes_inside(double, double, double, double, Gcell*, Llist**);
-void free_Llist(Llist*);
+void free_Llist(SYS*, Llist*);
 
 /* read_tree.c */
-int process_plane(GROUNDPLANE*, FILE*, SYS*);
+int process_plane(SYS*, GROUNDPLANE*, FILE*);
 // void set_gp_coord_system(GROUNDPLANE*, Nonuni_gp*);
 void get_nonuni_coords(double, double, double, Nonuni_gp*, double*, double*,
     double*);
@@ -376,11 +376,10 @@ G_nodes *add_to_gnodelist(G_nodes*, G_nodes*);
 // G_edges *make_one_edge(Gcell*, Gcell*, char);
 // G_edges *make_two_edge(Gcell*, Gcell*, Gcell*, char);
 // Gcell *new_Gcells(int, int);
-Gcell *new_Gcell(int);
+Gcell *new_Gcell(SYS*, int);
 // void init_Gcell(Gcell*);
 // G_nodes *new_Gnode(int);
-G_nodes *make_new_node(double, double, int, Gcell*, int);
-void *gp_malloc(int);
+G_nodes *make_new_node(SYS*, double, double, int, Gcell*, int);
 // void Combine_edges(Gcell*, char, Gcell*, char);
 // void combine_node_info(Gcell*, char, Gcell*, char);
 // void give_cell_adjaceny(Gcell*, char, Gcell*, char, G_nodes**, G_nodes**);

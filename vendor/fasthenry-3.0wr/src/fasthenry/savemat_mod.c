@@ -23,6 +23,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include "savemat_mod.h"
 
 #ifdef ALPHA
 typedef struct {
@@ -48,7 +49,7 @@ void savemat_mod(FILE*, int, char*, int, int, int, double*, double*, int, int);
 
 
 #ifdef __STDC__
-void savemat(FILE *fp, int type, char *pname, int mrows, int ncols, 
+void savemat(FILE *fp, int type, char *pname, int mrows, int ncols,
              int imagf, double *preal, double *pimag)
 #else
 void savemat(fp, type, pname, mrows, ncols, imagf, preal, pimag)
@@ -69,7 +70,7 @@ double *pimag;  /* pointer to imag data */
 {
 	Fmatrix x;
 	int mn;
-	
+
 	x.type = type;
 	x.mrows = mrows;
 	x.ncols = ncols;
@@ -86,18 +87,18 @@ double *pimag;  /* pointer to imag data */
 }
 
 /*
-  MODIFIED version of above: added wr_flag to allow multiple writes 
-  to same matrix 
+  MODIFIED version of above: added wr_flag to allow multiple writes
+  to same matrix
   wr_flag = 0 => open, print header (like old matlab setup)
   wr_flag = 1 => update, print without header
   Doesn't work for complex.  For complex, full real part must precede
-  full imaginary.  
+  full imaginary.
 */
 #ifdef __STDC__
-void savemat_mod(FILE *fp, int type, char *pname, int mrows, int ncols, 
+void savemat_mod(FILE *fp, int type, char *pname, int mrows, int ncols,
 		 int imagf, double *preal, double *pimag, int wr_flag, int mn)
 #else
-void savemat_mod(fp, type, pname, mrows, ncols, imagf, preal, pimag, 
+void savemat_mod(fp, type, pname, mrows, ncols, imagf, preal, pimag,
 		 wr_flag, mn)
 FILE *fp;       /* File pointer */
 int type;       /* Type flag: Normally 0 for PC, 1000 for Sun, Mac, */
@@ -117,14 +118,14 @@ int mn;				/* real #entries, this dump only */
 #endif
 {
 	Fmatrix x;
-	
+
 	if(wr_flag == 0) {
 	  x.type = type;
 	  x.mrows = mrows;
 	  x.ncols = ncols;
 	  x.imagf = imagf;
 	  x.namlen = strlen(pname) + 1;
-	
+
 	  fwrite(&x, sizeof(Fmatrix), 1, fp);
 	  fwrite(pname, sizeof(char), (int)x.namlen, fp);
 	}

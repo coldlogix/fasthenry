@@ -6,18 +6,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-#include "induct.h"
+#include "hole.h"
+#include "findpaths.h"
 
 /* SRW */
-int is_next_word(char*, char*);
-int is_hole(NODES*);
-HoleList *make_holelist(HoleList*, char*, double, double, double, double, int*);
-int skipspace(char*);
-int eos(char);
 void hole_error(char*, char*, HoleList*);
-int is_one_of(char, char*);
 void delete_node(NODES*);
-void make_holes(HoleList*, GROUNDPLANE*);
 void hole_point(HoleList*, GROUNDPLANE*, double, double, double, double);
 void hole_rect(HoleList*, GROUNDPLANE*, double, double, double, double);
 void hole_circle(HoleList*, GROUNDPLANE*, double, double, double, double);
@@ -48,7 +42,7 @@ int is_next_word(char *str, char *line)
     }
     if (*str == '\0')
       return TRUE;
-    else 
+    else
       return FALSE;
   }
 }
@@ -62,7 +56,7 @@ int is_hole(NODES *node)
 #define MAXNAME 20
 
 /* this turns the info in line into a HoleList element */
-HoleList *make_holelist(HoleList *hole_head, char *line, double units,
+HoleList *make_holelist(SYS* indsys, HoleList *hole_head, char *line, double units,
     double relx, double rely, double relz, int *skip)
 {
   char name[MAXNAME];
@@ -70,9 +64,9 @@ HoleList *make_holelist(HoleList *hole_head, char *line, double units,
   HoleList *holep;
   char *linep;
   double *vals;
-  
-  holep = (HoleList *)Gmalloc(sizeof(HoleList));
-  
+  holep=NULL;
+  sysALLOC(holep,1,HoleList,ON,IND,indsys,sysAllocTypeHoleList);
+
   name[MAXNAME-1] = '\0';
   sscanf(line, "%19s%n",name,&skip1);
   line+=skip1;
@@ -89,13 +83,13 @@ HoleList *make_holelist(HoleList *hole_head, char *line, double units,
   if (name[MAXNAME-1] != '\0')
     printf("Warning: hole function '%s' truncated to 19 chars\n",name);
 
-  holep->func = (char *)Gmalloc((strlen(name) + 1)*sizeof(char));
+  sysALLOC(holep->func,strlen(name) + 1,char,ON,IND,indsys,sysAllocTypeGeneric);
   strcpy(holep->func, name);
   holep->units = units;
   holep->relx = relx;
   holep->rely = rely;
   holep->relz = relz;
-    
+
   skip3 = 0;
   while(isspace(*line) && *line != '\0') {
     line++;
@@ -103,8 +97,8 @@ HoleList *make_holelist(HoleList *hole_head, char *line, double units,
   }
 
   if (*line != '(')
-    hole_error("Values for hole must start with '('",line,holep); 
-  
+    hole_error("Values for hole must start with '('",line,holep);
+
   /* let's count how many values we have first */
   linep = line;
   holep->numvals = 0;
@@ -118,7 +112,7 @@ HoleList *make_holelist(HoleList *hole_head, char *line, double units,
   if (*linep != ')')
     hole_error("Hole values did not end with ')'", line, holep);
 
-  holep->vals = (double *)Gmalloc(holep->numvals*sizeof(double));
+  sysALLOC(holep->vals,holep->numvals,double,ON,IND,indsys,sysAllocTypeGeneric);
 
   skip3 += linep - line + 1;
 
@@ -153,10 +147,10 @@ int skipspace(char *line)
     skip++;
     line++;
   }
-  
+
   return skip;
 }
-  
+
 /* End of string test */
 int eos(char chr)
 {
@@ -171,7 +165,7 @@ void hole_error(char *errstr, char *line, HoleList *holep)
   fprintf(stderr, "Where type is a string, and valn is a floating point value\n");
   exit(1);
 }
-  
+
 int is_one_of(char letter, char *one_of)
 {
   for( ; *one_of != '\0'; one_of++)
@@ -214,7 +208,7 @@ void make_holes(HoleList *holep, GROUNDPLANE *gp)
     hole_user6(holep, gp, relx, rely, relz, units);
   else if (strncmp("user7",holep->func,5) == 0)
     hole_user7(holep, gp, relx, rely, relz, units);
-  else 
+  else
     hole_error("Unknown type of hole","",holep);
 }
 
@@ -227,14 +221,14 @@ void hole_point(HoleList *holep, GROUNDPLANE *gp, double relx, double rely,
   double *vals = holep->vals;
   int i1,j1;
 
-  if (holep->numvals != 3) 
+  if (holep->numvals != 3)
     hole_error("Exactly 3 values required for a point hole.","",holep);
 
   delete_node(find_nearest_gpnode(vals[0]*units + relx, vals[1]*units + rely,
 			      vals[2]*units + relz, gp, &i1, &j1));
 }
 
-/* The following function creates a hole which is in the shape of 
+/* The following function creates a hole which is in the shape of
    a rectangle whose edges are parallel to the ground plane edges.
    The 6 values in holep->vals are two (x,y,z) pairs which represent
    opposite corners of the rectangle.
@@ -247,7 +241,7 @@ void hole_rect(HoleList *holep, GROUNDPLANE *gp, double relx, double rely,
   double *vals = holep->vals;
   int i_beg, i_end, j_beg, j_end, i, j;
 
-  if (holep->numvals != 6) 
+  if (holep->numvals != 6)
     hole_error("Exactly 6 values required for a square hole.","",holep);
 
   node1 = find_nearest_gpnode(vals[0]*units + relx, vals[1]*units + rely,
@@ -264,7 +258,7 @@ void hole_rect(HoleList *holep, GROUNDPLANE *gp, double relx, double rely,
     i_beg = i2;
     i_end = i1;
   }
-  
+
   if (j1 <= j2) {
     j_beg = j1;
     j_end = j2;
@@ -281,7 +275,7 @@ void hole_rect(HoleList *holep, GROUNDPLANE *gp, double relx, double rely,
 }
 
 /* The following function makes a hole in the shape of a circle.
-   It takes 4 values in holep->vals.  The first three are (x,y,z) of 
+   It takes 4 values in holep->vals.  The first three are (x,y,z) of
    the center and the last is the radius, R.
 */
 void hole_circle(HoleList *holep, GROUNDPLANE *gp, double relx, double rely,
@@ -296,7 +290,7 @@ void hole_circle(HoleList *holep, GROUNDPLANE *gp, double relx, double rely,
   double edge2;
   int k_up, k_down, p_left, p_right;
 
-  if (holep->numvals != 4) 
+  if (holep->numvals != 4)
     hole_error("Exactly 4 values required for a circular hole.","(x,y,z,radius)",holep);
 
   center[0] = holep->vals[0]*units + relx;
@@ -304,7 +298,7 @@ void hole_circle(HoleList *holep, GROUNDPLANE *gp, double relx, double rely,
   center[2] = holep->vals[2]*units + relz;
 
   R = holep->vals[3]*units;
- 
+
   /* find node nearest to center as a place to start (a 'reference')*/
   nodec = find_nearest_gpnode(center[0], center[1], center[2], gp, &ic, &jc);
 

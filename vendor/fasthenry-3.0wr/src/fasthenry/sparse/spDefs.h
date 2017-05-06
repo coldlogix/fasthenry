@@ -376,7 +376,7 @@
 /*
  *  ASSERT and ABORT
  *
- *  Macro used to assert that if the code is working correctly, then 
+ *  Macro used to assert that if the code is working correctly, then
  *  a condition must be true.  If not, then execution is terminated
  *  and an error message is issued stating that there is an internal
  *  error and giving the file and line number.  These assertions are
@@ -446,18 +446,22 @@ extern char *malloc(), *calloc(), *realloc();
 */
 
 #define ALLOC(type,number)  ((type *)malloc((unsigned)(sizeof(type)*(number))))
-#define REALLOC(ptr,type,number)  \
-           ptr = (type *)realloc((char *)ptr,(unsigned)(sizeof(type)*(number)))
+#define REALLOC(ptr,type,number)  ptr = (type *)realloc((char *)ptr,(unsigned)(sizeof(type)*(number)))
 #define FREE(ptr) { if ((ptr) != NULL) free((char *)(ptr)); (ptr) = NULL; }
+
+
 
 
 /* Calloc that properly handles allocating a cleared vector. */
 #define CALLOC(ptr,type,number)                         \
+{  ptr=(type *)calloc(sizeof(type),number); }
+
+/*
 {   int i; ptr = ALLOC(type, number);                   \
     if (ptr != (type *)NULL)                            \
         for(i=(number)-1;i>=0; i--) ptr[i] = (type) 0;  \
 }
-
+*/
 
 
 
@@ -591,12 +595,34 @@ typedef  ElementPtr  *ArrayOfElementPtrs;
  */
 
 /* Begin `AllocationRecord'. */
-struct AllocationRecord
-{   char  *AllocatedPtr;
-    struct  AllocationRecord  *NextRecord;
-};
+#define spELEMENTS_PER_ALLOCATION        1023
+#define spCalcHashGridSize 10
+#define spCalcHashWidth 8
 
-typedef  struct  AllocationRecord  *AllocationListPtr;
+struct spAllocationRecord
+{
+    struct  spAllocationRecord  *NextRecord;           /* Next entry */
+    struct  spAllocationRecord  *PrevRecord;           /* Previous entry */
+    char  *AllocatedPtr;                                /* Pointer to memory block */
+    unsigned long AllocatedSize;                        /* Size of memory block */
+    unsigned char AllocatedType;                        /* Type of memory block */
+    unsigned char Mark;                                 /* Mark as linked */
+    unsigned int AllocatedDebugLineNumber;              /* Allocation in line */
+    const char* AllocatedDebugFilename;                 /* Allocation in file */
+    unsigned long AllocNumber;                          /* Number for MPI transfer */
+};
+typedef  struct  spAllocationRecord  *spAllocationListPtr;
+
+struct spAllocationRecordHash
+{
+    struct  spAllocationRecordHash  *NextRecord;           /* Next entry in same hash table */
+    struct  spAllocationRecordHash  *PrevRecord;           /* Previous entry in same hash table */
+    struct  spAllocationRecordHash  *NextPeerRecord;       /* Same entry in other hash table */
+    struct  spAllocationRecordHash  *PrevPeerRecord;       /* Same entry in other hash table */
+    spAllocationListPtr AllocRecord;
+    unsigned int hashtable;
+};
+typedef  struct  spAllocationRecordHash  *spAllocationListHashPtr;
 
 
 
@@ -752,7 +778,7 @@ struct FillinListNodeStruct
  *      Flag that indicates the sum of row and column interchange counts
  *      is an odd number.  Used when determining the sign of the determinant.
  *  Partitioned  (BOOLEAN)
- *      This flag indicates that the columns of the matrix have been 
+ *      This flag indicates that the columns of the matrix have been
  *      partitioned into two groups.  Those that will be addressed directly
  *      and those that will be addressed indirectly in spFactor().
  *  PivotsOriginalCol  (int)
@@ -828,6 +854,37 @@ struct FillinListNodeStruct
  *      A pointer to the tail of the linked-list that keeps track of the
  *      lists of fill-ins.
  */
+/* SRW 080714 */
+#if BUILDHASH
+/*
+ * Implement a hash table for quick access of elements by row/col.
+ * This is experimental, for FastHenry.
+ */
+
+struct spHelt
+{
+    int row;
+    int col;
+    ElementPtr eptr;
+    struct spHelt *next;
+};
+
+#define HEBLKSZ 1024
+
+ struct heblk
+{
+    struct heblk *next;
+    struct spHelt elts[HEBLKSZ];
+};
+
+struct spHtab
+{
+    struct spHelt **entries;
+    unsigned int mask;
+    unsigned int allocated;
+    unsigned int getcalls;
+};
+#endif
 
 /* Begin `MatrixFrame'. */
 struct  MatrixFrame
@@ -873,7 +930,12 @@ struct  MatrixFrame
     int                          Size;
     struct MatrixElement         TrashCan;
 
-    AllocationListPtr            TopOfAllocationList;
+    spAllocationListHashPtr      TopOfAllocationHashList[1<<spCalcHashWidth];
+    spAllocationListHashPtr      EmptyAllocHashRecord;
+
+    spAllocationListPtr          TopOfAllocationList;
+    spAllocationListPtr          EmptyAllocRecord;
+
     int                          RecordsRemaining;
     ElementPtr                   NextAvailElement;
     int                          ElementsRemaining;
@@ -881,8 +943,62 @@ struct  MatrixFrame
     int                          FillinsRemaining;
     struct FillinListNodeStruct *FirstFillinListNode;
     struct FillinListNodeStruct *LastFillinListNode;
+    /* SRW */
+#if BUILDHASH
+    struct spHtab               *ElementHashTab;
+    struct heblk                *he_blocks;
+    int                         he_blkcnt;
+#endif
+#if BITFIELD
+    unsigned int               **BitField;
+#endif
 };
 typedef  struct MatrixFrame  *MatrixPtr;
+
+#define AllocTypeGeneric 0
+#define AllocTypeMatrixFrame 1
+#define AllocTypeMatrixElement 2
+#define AllocTypeFillinListNodeStruct 3
+#define AllocTypeAllocationHashRecord 4
+#define AllocTypeAllocationRecord 5
+
+#if BUILDHASH
+
+#define AllocTypespHtab 7
+#define AllocTypespHelt 8
+#define AllocTypespHeblk 9
+
+#endif
+
+#define AllocTypePtrArray 10
+
+ElementPtr spcGetElement( MatrixPtr );
+ElementPtr spcGetFillin( MatrixPtr );
+ElementPtr spcFindElementInCol( MatrixPtr, ElementPtr*, int, int, BOOLEAN );
+ElementPtr spcCreateElement( MatrixPtr, int, int, ElementPtr*, BOOLEAN );
+void spcLinkRows( MatrixPtr );
+void spcRowExchange( MatrixPtr, int, int );
+void spcColExchange( MatrixPtr, int, int );
+
+#define spAlloc(Matrix, Pntr, size, type) spAllocFunc(Matrix, (void**)Pntr, size, type, __FILE__, __LINE__)
+void spAllocFunc( MatrixPtr Matrix, void** AllocatedPtr, unsigned long AllocatedSize, unsigned int AllocatedType, const char* filename, unsigned int linenumber );
+
+#define spRealloc(Matrix, Pntr, size) spReallocFunc(Matrix, (void**)Pntr, size, __FILE__, __LINE__)
+void spReallocFunc (MatrixPtr Matrix, void** pPtr, unsigned long Size, const char* filename, unsigned int linenumber );
+
+#define RemoveRecordAllocation(Matrix, Ptr) spRemoveRecordAllocationFunc(Matrix, Ptr, __FILE__, __LINE__)
+void spRemoveRecordAllocationFunc (MatrixPtr Matrix, char *AllocatedPtr, const char* filename, unsigned int linenumber);
+
+#define spFree(Matrix, Pntr) spFreeFunc(Matrix, (void**)(Pntr), __FILE__, __LINE__)
+void spFreeFunc (MatrixPtr Matrix, void** pPtr, const char* filename, unsigned int linenumber );
+
+#define RecordAllocation(Matrix, Pntr, size, type) spRecordAllocationFunc(Matrix,Pntr, size, type, __FILE__, __LINE__)
+void spRecordAllocationFunc( MatrixPtr Matrix, char *AllocatedPtr, unsigned long AllocatedSize, unsigned int AllocatedType, const char* filename, unsigned int linenumber );
+
+#define spValidatePtr(Matrix,ptr) spValidatePtrFunc(Matrix,ptr,__FILE__,__LINE__)
+void spValidatePtrFunc (MatrixPtr Matrix, void* ptr, const char* filename, unsigned int linenumber);
+
+unsigned int spCalcHash(void* ptr);
 
 
 ElementPtr spcGetElement( MatrixPtr );
@@ -892,4 +1008,24 @@ ElementPtr spcCreateElement( MatrixPtr, int, int, ElementPtr*, BOOLEAN );
 void spcLinkRows( MatrixPtr );
 void spcRowExchange( MatrixPtr, int, int );
 void spcColExchange( MatrixPtr, int, int );
+
+/* SRW 080714 hash table functions, speedup for building */
+#if BUILDHASH
+extern int sph_add( MatrixPtr, int, int, ElementPtr );
+extern ElementPtr sph_get( MatrixPtr, int, int );
+extern void sph_stats( void*, unsigned int*, unsigned int*);
+extern void sph_destroy( MatrixPtr );
+#endif
+
+/* SRW 080714 bit field functions, speedup for reordering */
+#if BITFIELD
+void ba_setbit(MatrixPtr, int, int, int);
+int ba_getbit(MatrixPtr, int, int);
+ElementPtr ba_left(MatrixPtr, int, int);
+ElementPtr ba_above(MatrixPtr, int, int);
+void ba_setup(MatrixPtr);
+void ba_destroy(MatrixPtr);
+#endif
+
+
 

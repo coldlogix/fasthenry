@@ -1,13 +1,15 @@
-/* This regurgitates the input file to the output with some 
+/* This regurgitates the input file to the output with some
    translations and replications if desired */
 /* It outputs in SI units only */
 
-#include "induct.h"
+#include "regurgitate.h"
+
 #include <string.h>
+#include "findpaths.h"
+#include "readGeom.h"
 
 /* SRW */
 typedef void (*regurg_cb)(double, double, double, double*, double*, double*);
-void regurgitate(SYS*);
 void do_end_stuff(SYS*);
 void set_translate(double, double, double);
 void translate(double, double, double, double*, double*, double*);
@@ -34,7 +36,7 @@ void regurgitate(SYS *indsys)
 
 void do_end_stuff(SYS *indsys)
 {
-  fprintf(stdout, ".freq fmin=%lg fmax=%lg ndec=%lg\n",indsys->fmin, 
+  fprintf(stdout, ".freq fmin=%lg fmax=%lg ndec=%lg\n",indsys->fmin,
           indsys->fmax, 1.0/indsys->logofstep);
 
   fprintf(stdout, ".end\n");
@@ -103,7 +105,7 @@ void do_nothing(double x, double y, double z, double *new_x, double *new_y,
 
 void spit(SYS *indsys, regurg_cb new_coords, char *suffix)
 {
-  
+
   NODES *node;
   NODELIST *nodel;
   SEGMENT *seg;
@@ -127,15 +129,15 @@ void spit(SYS *indsys, regurg_cb new_coords, char *suffix)
     if (seg->type == NORMAL) {
 #if SUPERCON == ON
       fprintf(stdout, "%s%s %s%s %s%s w=%lg h=%lg nhinc=%d nwinc=%d rw=%lg rh=%lg sigma=%lg lambda=%lg",
-              seg->name, suffix, seg->node[0]->name, suffix, 
-              seg->node[1]->name, suffix, seg->width, 
-              seg->height, seg->hinc, 
+              seg->name, suffix, seg->node[0]->name, suffix,
+              seg->node[1]->name, suffix, seg->width,
+              seg->height, seg->hinc,
               seg->winc, seg->r_width, seg->r_height, seg->sigma, seg->lambda);
 #else
       fprintf(stdout, "%s%s %s%s %s%s w=%lg h=%lg nhinc=%d nwinc=%d rw=%lg rh=%lg sigma=%lg",
-              seg->name, suffix, seg->node[0]->name, suffix, 
-              seg->node[1]->name, suffix, seg->width, 
-              seg->height, seg->hinc, 
+              seg->name, suffix, seg->node[0]->name, suffix,
+              seg->node[1]->name, suffix, seg->width,
+              seg->height, seg->hinc,
               seg->winc, seg->r_width, seg->r_height, seg->sigma);
 #endif
       if (seg->widthdir != NULL)
@@ -177,26 +179,26 @@ void spit(SYS *indsys, regurg_cb new_coords, char *suffix)
 #endif
 
     for(nodel = gp->usernode_coords; nodel != NULL; nodel=nodel->next) {
-      fprintf(stdout, "+ %s (%lg, %lg, %lg)\n", nodel->name, nodel->x, 
+      fprintf(stdout, "+ %s (%lg, %lg, %lg)\n", nodel->name, nodel->x,
               nodel->y, nodel->z);
     }
 
     if (gp->list_of_holes != NULL)
       fprintf(stdout, "Holes cannot be regurgitated at this time!\n");
-      
+
   }
 
   /* do .equivs */
   fprintf(stdout, "* .equivs for %s\n",suffix);
   for(node  = indsys->nodes; node != NULL; node = node->next) {
     if (node->type == NORMAL && node != getrealnode(node)) {
-      fprintf(stdout, ".equiv %s%s  %s%s\n", node->name, suffix, 
+      fprintf(stdout, ".equiv %s%s  %s%s\n", node->name, suffix,
               getrealnode(node)->name, suffix);
     }
   }
 
   /* do .externals */
-  
+
   for(ext = indsys->externals; ext != NULL; ext = ext->next) {
     fprintf(stdout, ".external %s%s %s%s ",
             getrealnode(ext->source->node[0])->name, suffix,
@@ -207,7 +209,7 @@ void spit(SYS *indsys, regurg_cb new_coords, char *suffix)
       fprintf(stdout, "\n");
   }
 }
-    
-                
-      
-  
+
+
+
+

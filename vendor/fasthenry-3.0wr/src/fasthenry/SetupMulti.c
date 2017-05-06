@@ -1,8 +1,12 @@
 /* this is 'fastcap.c' */
-#include "induct.h"
 
-/* SRW */
-ssystem *SetupMulti(charge*, SYS*);
+/* Global definition */
+#include "SetupMulti.h"
+#include "mulSetup.h"
+#include "calcp.h"
+#include "uglieralloc.h"
+
+/* Local definition */
 
 
 ssystem *SetupMulti(charge *chglist, SYS *indsys)
@@ -17,10 +21,9 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
   int pseudo_lev;   /* level for breaking up only */
 
   extern int fulldirops, fullPqops;
-  extern int num_dummy_panels, num_dielec_panels; 
+  extern int num_dummy_panels, num_dielec_panels;
   extern int num_both_panels, num_cond_panels, up_size, eval_size;
   extern char *title, *ps_file_base;
-  extern long memcount;
   extern double prectime, conjtime, dirtime, multime, uptime, downtime;
   extern double evaltime, lutime, fullsoltime, prsetime;
   extern char *kill_name_list;
@@ -34,7 +37,7 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
 #if CAPVEW == ON
   extern char **argvals;
   extern int argcnt, m_, q_, dd_;
-  extern double ***axes;
+//  extern double ***axes; /*No usage in fasthenry */
 #endif
 
   /* initialize memory and time counters, etc. */
@@ -52,24 +55,28 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
 /*  argvals = argv;
   argcnt = argc;
 */
+/* No usage in fasthenry
   CALLOC(axes, 10, double **, ON, AMSC);
-  for(i = 0; i < 10; i++) {
+  for(i = 0; i < 10; i++)
+  {
     CALLOC(axes[i], 2, double *, ON, AMSC);
-    for(j = 0; j < 2; j++) {
+    for(j = 0; j < 2; j++)
+    {
       CALLOC(axes[i][j], 3, double, ON, AMSC);
     }
   }
+*/
 #endif
 
   /* get the list of all panels in the problem */
   /* - many command line parameters having to do with the postscript
      file dumping interface are passed back via globals (see mulGlobal.c) */
-  /*  chglist = input_problem(argv, argc, &autmom, &autlev, &relperm, 
+  /*  chglist = input_problem(argv, argc, &autmom, &autlev, &relperm,
                               &numMom, &numLev, &name_list, &num_cond);
 */
   if(autmom == ON) numMom = DEFORD;
   else numMom = DEFORD;
-  
+
 #if DIRSOL == ON || EXPGCR == ON
   /*fprintf(stderr, "DIRSOL and EXPGCR compile options not implemented\n");
     exit(1);*/
@@ -92,7 +99,7 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
 
   autlev = OFF;
   numMom = indsys->opts->order;
-  if (indsys->opts->level == AUTO) 
+  if (indsys->opts->level == AUTO)
     autlev = ON;
   else
     numLev = indsys->opts->level;
@@ -102,16 +109,16 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
     printf("Level to break up segments:");
     scanf("%d",&pseudo_lev);
   }
-  else 
+  else
 */
      pseudo_lev = numLev;
 
   /*  starttimer; */
-  sys = mulInit(autlev, numLev, numMom, chglist, indsys, pseudo_lev); 
+  sys = mulInit(autlev, numLev, numMom, chglist, indsys, pseudo_lev);
                          /*Set up cubes, charges.*/
   /* stoptimer */
   initalltime = dtime;
- 
+
   numLev = sys->depth;
 
 /*
@@ -152,12 +159,12 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
   fprintf(stdout, "  Total number of filaments: %d\n", up_size);
 #if 1==0
   fprintf(stdout, "    Number of conductor panels: %d\n", num_cond_panels);
-  fprintf(stdout, "    Number of dielectric interface panels: %d\n", 
+  fprintf(stdout, "    Number of dielectric interface panels: %d\n",
 	  num_dielec_panels);
-  fprintf(stdout, 
-	  "    Number of thin conductor on dielectric interface panels: %d\n", 
+  fprintf(stdout,
+	  "    Number of thin conductor on dielectric interface panels: %d\n",
 	  num_both_panels);
-  /*fprintf(stdout, "  Number of extra evaluation points: %d\n", 
+  /*fprintf(stdout, "  Number of extra evaluation points: %d\n",
 	  num_dummy_panels);*/
   fprintf(stdout, "  Number of conductors: %d\n", num_cond);
 #endif
@@ -176,7 +183,7 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
 #endif
 
   if(num_both_panels > 0) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "Thin cond panels on dielectric interfaces not supported\n");
     exit(1);
   }
@@ -293,18 +300,18 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
 /*  mksCapDump(capmat, num_cond, relperm, &name_list); */
 #endif
 
-#if TIMDAT == ON 
+#if TIMDAT == ON
   ttlsetup = initalltime + dirtimesav + mulsetup;
   multime = uptime + downtime + evaltime;
   ttlsolve = dirtime + multime + prectime + conjtime;
 
-  if (indsys->opts->debug == ON) 
+  if (indsys->opts->debug == ON)
     fprintf(stdout, "\nTIME AND MEMORY USAGE SYNOPSIS\n");
 #endif
 
 #ifdef OTHER
   if(TIMDAT == ON) {
-    fprintf(stdout, 
+    fprintf(stdout,
 	    "Warning: compilation with OTHER flag gives incorrect times\n");
   }
 #endif
@@ -331,50 +338,16 @@ ssystem *SetupMulti(charge *chglist, SYS *indsys)
     fprintf(stdout, "Total direct operations: %d\n", fulldirops);
   }
   else if(EXPGCR == ON) {	/* if solution done iteratively w/o multis */
-    fprintf(stdout,"\nTotal A*q operations: %d (%d/iter)\n", 
+    fprintf(stdout,"\nTotal A*q operations: %d (%d/iter)\n",
 	    fullPqops, fullPqops/ttliter);
   }
 #endif
 
- if (indsys->opts->debug == ON) {
-  fprintf(stdout, "Total memory allocated: %ld kilobytes ", memcount/1024);
+ if (indsys->opts->debug == ON)
+ {
+  fprintf(stdout, "Total memory allocated: %ld kilobytes\n", memcount/1024);
   uallocEfcy(memcount);
-
-  fprintf(stdout, "  Q2M  matrix memory allocated: %7.ld kilobytes\n",
-	  memQ2M/1024);
-  memcount = memQ2M;
-  fprintf(stdout, "  Q2L  matrix memory allocated: %7.ld kilobytes\n",
-	  memQ2L/1024);
-  memcount += memQ2L;
-  fprintf(stdout, "  Q2P  matrix memory allocated: %7.ld kilobytes\n",
-	  memQ2P/1024);
-  memcount += memQ2P;
-  fprintf(stdout, "  L2L  matrix memory allocated: %7.ld kilobytes\n",
-	  memL2L/1024);
-  memcount += memL2L;
-  fprintf(stdout, "  M2M  matrix memory allocated: %7.ld kilobytes\n",
-	  memM2M/1024);
-  memcount += memM2M;
-  fprintf(stdout, "  M2L  matrix memory allocated: %7.ld kilobytes\n",
-	  memM2L/1024);
-  memcount += memM2L;
-  fprintf(stdout, "  M2P  matrix memory allocated: %7.ld kilobytes\n",
-	  memM2P/1024);
-  memcount += memM2P;
-  fprintf(stdout, "  L2P  matrix memory allocated: %7.ld kilobytes\n",
-	  memL2P/1024);
-  memcount += memL2P;
-  fprintf(stdout, "  Q2PD matrix memory allocated: %7.ld kilobytes\n",
-	  memQ2PD/1024);
-  memcount += memQ2PD;
-  fprintf(stdout, "  Miscellaneous mem. allocated: %7.ld kilobytes\n",
-	  memMSC/1024);
-  memcount += memMSC;
-  fprintf(stdout, "  Inductance mem allocated: %7.ld kilobytes\n",
-	  memIND/1024);
-  memcount += memIND;
-  fprintf(stdout, "  Total memory (check w/above): %7.ld kilobytes\n",
-	  memcount/1024);
+  DUMPALLOCSIZ(stdout);
  }
 #endif
 

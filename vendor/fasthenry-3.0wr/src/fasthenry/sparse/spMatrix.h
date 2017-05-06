@@ -48,7 +48,7 @@
  */
 
 #include "spConfig.h"
-
+#include <stdio.h>
 
 
 
@@ -306,6 +306,20 @@ extern  int      spFileStats( char*, char*, char* );
 extern  int      spFillinCount( char* );
 extern  int      spGetAdmittance( char*, int, int, struct spTemplate* );
 extern  spREAL  *spGetElement( char*, int, int );
+
+/* SRW start */
+extern  spREAL  *spGetElementEx( char*, int, int, spREAL* );
+
+struct spColData
+{
+    int row;
+    double real;
+    double imag;
+    void *ptr;
+};
+extern  void    spSetRowElements( char*, int, struct spColData*, int);
+/* SRW end */
+
 extern  char    *spGetInitInfo( spREAL* );
 extern  int      spGetOnes( char*, int, int, int, struct spTemplate* );
 extern  int      spGetQuad( char*, int, int, int, int, struct spTemplate* );
@@ -325,6 +339,7 @@ extern  void     spSetComplex( char* );
 extern  void     spSetReal( char* );
 extern  void     spStripFills( char* );
 extern  void     spWhereSingular( char*, int*, int* );
+extern  int     spAnalyzeAllocatedMemory (char*);
 
 /* Functions with argument lists that are dependent on options. */
 
@@ -415,6 +430,22 @@ int
 MatrixFillinCount( char* );
 int
 MatrixElementCount( char* );
+#endif
+
+#define spCommBcastMPI (0)
+#define spCommtoMPI (1)
+#define spCommfromMPI (2)
+#define spCommtoFile (3)
+#define spCommfromFile (4)
+
+
+void spMatrixComm (char** ppsparMatrix, int unsigned mode, FILE* fop);
+#ifdef MPI
+#define spCopyMatrixoverMPI(Matrix,grp) spMatrixComm(Matrix, spCommBcastMPI, (FILE*)&grp)
+#define spSendMatrixoverMPI(Matrix,dest) spMatrixComm(Matrix, spCommtoMPI, (FILE*)&dest)
+#define spRecvMatrixoverMPI(Matrix,src) spMatrixComm(Matrix, spCommfromMPI, (FILE*)&src)
+#define spMatrixSave(Matrix, file) spMatrixComm(Matrix, spCommtoFile, file)
+#define spMatrixLoad(Matrix, file) spMatrixComm(Matrix, spCommfromFile, file)
 #endif
 
 #endif  /* spOKAY */

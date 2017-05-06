@@ -1,12 +1,17 @@
 /* this will read the input file */
 
-#include <stdio.h>
+#include "readGeom.h"
+
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-#include "induct.h"
+#include "hole.h"
+#include "findpaths.h"
+#include "writefastcap.h"
+#include "addgroundplane.h"
 #include "gp.h"
+#include "memmgmt.h"
 
 #define MAXLINE 1000
 #define XX 0
@@ -64,16 +69,10 @@ int choosefreqs(char*, SYS*);
 int old_equivnodes(char*, SYS*);
 int dodefault(char*);
 int addnode(char*, SYS*, NODES**, int);
-NODES *makenode(char*, int, double, double, double, int, SYS*);
 int addseg(char*, SYS*, int, SEGMENT**);
-SEGMENT *makeseg(char*, NODES*, NODES*, double, double, double,
-#if SUPERCON == ON
-    double,
-#endif  
-    int, int, double, double, double*, int, int, SYS*);
 int addgroundplane(char*, SYS*, GROUNDPLANE**);
 int nothing(char*);
-char *getaline(FILE*);
+char *getaline(SYS*, FILE*);
 char *plusline(FILE*);
 char *getoneline(FILE*);
 void savealine(char*);
@@ -81,6 +80,10 @@ int notblankline(char*);
 void tolowercase(char*);
 int is_nonuni_gp(GROUNDPLANE*);
 
+ #ifdef SRW0814
+/* SRW -- new hashing function in findpaths.c */
+void register_new_node(SYS* indsys, NODES*);
+#endif // SRW0814
 
 int readGeom(FILE *fp, SYS *indsys)
 {
@@ -94,21 +97,23 @@ int readGeom(FILE *fp, SYS *indsys)
   indsys->num_segs = indsys->num_nodes = 0;
 
   /* read title */
-  line = getaline(fp);
+  line = getaline(indsys, fp);
   printf("Title:\n%s\n", line);
-  indsys->title = (char *)MattAlloc(strlen(line)+1,sizeof(char));
+  sysALLOC(indsys->title,strlen(line)+1,char,ON,IND,indsys,sysAllocTypeGeneric);
   strcpy(indsys->title,line);
 
   end = 0;
   error = 0;
-  while (!end ){
+  while (!end )
+  {
 
-    line = getaline(fp);
+    line = getaline(indsys, fp);
     tolowercase(line);
-    switch (line[0]) {
+    switch (line[0])
+    {
     case '*':
       break;
-    case '.': 
+    case '.':
       end = dodot(line + 1, indsys);
       break;
     case 'n':
@@ -124,14 +129,16 @@ int readGeom(FILE *fp, SYS *indsys)
       end = nothing(line);
       break;
     }
-    if (end == 1) {
+    if (end == 1)
+    {
       error = 1;
       end = 0;
     }
+    //free(line);
   }
 
   indsys->num_planes = plane_count;           /* CMS 7/2/92 */
-    
+
   if (end == 2) end = error;
   return end;
 }
@@ -140,23 +147,26 @@ int dodot(char *line, SYS *indsys)
 {
   int end;
 
-  if (strncasecmp("uni",line, 3) == 0) 
-    end = changeunits(line, indsys);
-  else if (strncasecmp("ext",line, 3) == 0)
-    end = addexternal(line, indsys);
-  else if (strncasecmp("fre",line, 3) == 0)
-    end = choosefreqs(line, indsys);
-  else if (strncasecmp("equ",line, 3) == 0)
-    end = equivnodes(line, indsys);
-  else if (strncasecmp("def",line, 3) == 0)
-    end = dodefault(line);
-  else if (strncasecmp("end",line, 3) == 0)
-    end = 2;
-  else {
-    printf("unrecognized . command\n.%s\n",line);
-    return 1;
-  }
-  return end;
+  if (strncasecmp("uni",line, 3) == 0)
+    return changeunits(line, indsys);
+
+  if (strncasecmp("ext",line, 3) == 0)
+    return addexternal(line, indsys);
+
+  if (strncasecmp("fre",line, 3) == 0)
+    return choosefreqs(line, indsys);
+
+  if (strncasecmp("equ",line, 3) == 0)
+     return equivnodes(line, indsys);
+
+  if (strncasecmp("def",line, 3) == 0)
+    return dodefault(line);
+
+  if (strncasecmp("end",line, 3) == 0)
+    return  2;
+
+  printf("unrecognized . command\n.%s\n",line);
+  return 1;
 }
 
 int changeunits(char *line, SYS *indsys)
@@ -216,11 +226,12 @@ int addexternal(char *line, SYS *indsys)
   GROUNDPLANE *plane;
   NODES *outnode, *innode, *finode, *pnode;
   SPATH *pathpointer;
-  
+
   /*--------------------------------------------------------------*/
 
-  templine = (char *)MattAlloc(100,sizeof(char));           /* CMS 9/4/92 */
-	
+  templine=NULL;
+  sysALLOC(templine,100,char,ON,IND,indsys,sysAllocTypeGeneric);
+
   err = 0;
 
   if(sscanf(line, "%*s%n", &skip) != 0){
@@ -250,35 +261,39 @@ int addexternal(char *line, SYS *indsys)
     node[i] = getrealnode(node[i]);
   }
 
-  if(sscanf(line, "%s%n",portname,&skip) != 1){
+  if(sscanf(line, "%s%n",portname,&skip) != 1)
+  {
     portname[0] = '\0';
   }
-  else {
+  else
+  {
     line += skip;
   }
-  
-  if ((ext = get_external_from_portname(portname,indsys)) != NULL) {
+
+  if ((ext = get_external_from_portname(portname,indsys)) != NULL)
+  {
     fprintf(stderr, "Error: Cannot name port between %s and %s as %s.\n \
 The name is already used for port between %s and %s\n",
 	    names[0],names[1],portname,ext->name1,ext->name2);
     err = 1;
   }
 
-  if (node[0] == node[1]) {
+  if (node[0] == node[1])
+  {
     fprintf(stderr, "Error in .external: Nodes %s and %s are the same node. (.equiv'ed maybe?)\n", names[0], names[1]);
-    if (is_gp_node(node[0])) 
+    if (is_gp_node(node[0]))
       fprintf(stderr,"  Nodes could be coincident because of coarse ground plane.\n");
     err = 1;
   }
 
-  Vsource = make_pseudo_seg(node[0], node[1], EXTERNTYPE);
+  Vsource = make_pseudo_seg(indsys,node[0], node[1], EXTERNTYPE);
 /*
-  indsys->externals = add_to_external_list(make_external(Vsource, 
+  indsys->externals = add_to_external_list(make_external(indsys,Vsource,
 							 indsys->num_extern),
 					   indsys->externals);
 */
-  indsys->externals 
-    = add_to_external_list(make_external(Vsource, indsys->num_extern, names[0],
+  indsys->externals
+    = add_to_external_list(make_external(indsys,Vsource, indsys->num_extern, names[0],
 					 names[1], portname),
 			   indsys->externals);
   indsys->num_extern += 1;
@@ -299,42 +314,53 @@ int choosefreqs(char *line, SYS *indsys)
   }
   line += skip;
 
-  while(notblankline(line)) {
-    if (sscanf(line," fmin = %lf%n",&dumb,&skip) == 1) {
+  while(notblankline(line))
+  {
+    if (sscanf(line," fmin = %lf%n",&dumb,&skip) == 1)
+    {
       fminread = 1;
       fmin = dumb;
       line += skip;
     }
-    else if (sscanf(line," fmax = %lf%n",&dumb,&skip) == 1) {
-      fmaxread = 1;
-      fmax = dumb;
-      line += skip;
-    }
-    else if (sscanf(line," ndec = %lf%n",&dumb,&skip) == 1) {
-      if (dumb == 0) {
-        dumb = 0.01;
-        printf("Warning: ndec == 0.  Resetting to a very small number instead (%lg)\n",
-               dumb);
+    else
+      if (sscanf(line," fmax = %lf%n",&dumb,&skip) == 1)
+      {
+        fmaxread = 1;
+        fmax = dumb;
+        line += skip;
       }
-      logofstep = 1.0/dumb;
-      logofstepread = 1;
-      line += skip;
-    }
-    else {
-      printf("don't know what piece this is in freq:%s\n",line);
-      return 1;
-    }
+      else
+        if (sscanf(line," ndec = %lf%n",&dumb,&skip) == 1)
+        {
+          if (dumb == 0)
+          {
+            dumb = 0.01;
+            printf("Warning: ndec == 0.  Resetting to a very small number instead (%lg)\n",
+               dumb);
+          }
+          logofstep = 1.0/dumb;
+          logofstepread = 1;
+          line += skip;
+       }
+       else
+       {
+         printf("don't know what piece this is in freq:%s\n",line);
+         return 1;
+       }
   }  /* end while(notblank... */
 
-  if (fminread == 0) {
+  if (fminread == 0)
+  {
       printf("fmin not given for frequency range\n");
       return 1;
   }
-  if (fmaxread == 0) {
+  if (fmaxread == 0)
+  {
       printf("fmax not given for frequency range\n");
       return 1;
   }
-  if (logofstepread == 0) {
+  if (logofstepread == 0)
+  {
     logofstep = 1.0;
   }
 
@@ -379,7 +405,7 @@ int old_equivnodes(char *line, SYS *indsys)
   realnode = indsys->nodes;
   while( realnode != NULL && strcmp(name1,realnode->name) != 0)
     realnode = realnode->next;
-  
+
   if (realnode == NULL) {
     printf("No node read in yet named %s\n",name1);
     return 1;
@@ -388,14 +414,14 @@ int old_equivnodes(char *line, SYS *indsys)
   equivnode = indsys->nodes;
   while( equivnode != NULL && strcmp(name2,equivnode->name) != 0)
     equivnode = equivnode->next;
-  
+
   if (equivnode == NULL) {
     printf("No node read in yet named %s\n",name1);
     return 1;
   }
   else
     equivnode->equiv = realnode;
-  
+
   return 0;
 }
 
@@ -519,7 +545,7 @@ int addnode(char *line, SYS *indsys, NODES **retnode, int type)
     } /* while not blank */
 
   if (zread == 0) {
-    if (defaults.isz == 1) 
+    if (defaults.isz == 1)
       nodez = defaults.z;
     else {
       printf("Z not given for node %s\n",name);
@@ -527,7 +553,7 @@ int addnode(char *line, SYS *indsys, NODES **retnode, int type)
     }
   }
   if (yread == 0) {
-    if (defaults.isy == 1) 
+    if (defaults.isy == 1)
       nodey = defaults.y;
     else {
       printf("Y not given for node %s\n",name);
@@ -535,7 +561,7 @@ int addnode(char *line, SYS *indsys, NODES **retnode, int type)
     }
   }
   if (xread == 0) {
-    if (defaults.isx == 1) 
+    if (defaults.isx == 1)
       nodex = defaults.x;
     else {
       printf("X not given for node %s\n",name);
@@ -549,7 +575,12 @@ int addnode(char *line, SYS *indsys, NODES **retnode, int type)
     exit(1);
   }
 
-  node = makenode(name, indsys->num_nodes, nodex, nodey, nodez, type, indsys);
+  node = makenode(name, indsys->num_nodes, nodex, nodey, nodez, type, indsys,1 );
+
+ #ifdef SRW0814
+  /* SRW -- hash it */
+  register_new_node(indsys, node);
+ #endif
 
 #if 1==0
   /* add node to linked list of nodes */
@@ -561,18 +592,21 @@ int addnode(char *line, SYS *indsys, NODES **retnode, int type)
     indsys->endnode->next = node;
     indsys->endnode = node;
   }
-#endif    
+#endif
   *retnode = node;
   return 0;
 }
 
 NODES *makenode(char *name, int number, double x, double y, double z,
-    int type, SYS *indsys)
+    int type, SYS *indsys, int flag)
 {
   NODES *node;
 
-  node = (NODES *)MattAlloc(1, sizeof(NODES));
-  node->name = (char *)MattAlloc( (strlen(name) + 1), sizeof(char));
+  ASSERT(indsys!=NULL);
+
+  node=NULL;
+  sysALLOC(node,1,NODES,ON,IND,indsys,sysAllocTypeNode);
+  sysALLOC(node->name,(strlen(name) + 1),char,ON,IND,indsys,sysAllocTypeGeneric);
   strcpy(node->name, name);
   node->number = number;
   node->index = -1;     /* to be assigned later if needed */
@@ -597,13 +631,16 @@ NODES *makenode(char *name, int number, double x, double y, double z,
   else
     node->examined = 0;
 
-  if (indsys != NULL) {
+  if (flag > 0)
+  {
     /* add node to linked list of nodes */
-    if (indsys->nodes == NULL) {
+    if (indsys->nodes == NULL)
+    {
       indsys->nodes = node;
       indsys->endnode = node;
     }
-    else {
+    else
+    {
       indsys->endnode->next = node;
       indsys->endnode = node;
     }
@@ -633,7 +670,7 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
                        /* the length, then this is 3 element vector in       */
                        /* in the direction of width*/
    int number;         /* an arbitrary number for the segment */
-   double length;      
+   double length;
    double area;        /* area of cross section */
    double width, height;  /*width and height to cross section */
    int hinc, winc;             /* number of filament divisions in each dir */
@@ -644,14 +681,15 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
    FILAMENT *filaments;        /* this segment's filaments */
    struct pathlist *loops;   /* loops in which this segment is a member */
 
-  hread = wread = hincread = wincread = sigmaread = wxread 
+  hread = wread = hincread = wincread = sigmaread = wxread
     = wyread = wzread = rwread = rhread = 0;
 
   widthdir = NULL;
-  
+
   /* read name */
   sscanf(line,"%s%n",name,&skip);
-  segname = (char *)MattAlloc( (strlen(name) + 1), sizeof(char));
+  segname=NULL;
+  sysALLOC(segname,strlen(name)+1,char,ON,IND,indsys,sysAllocTypeGeneric);
   strcpy(segname, name);
   line += skip;
 
@@ -661,7 +699,7 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
     line += skip;
 
     anode = get_node_from_name(name, indsys);
-    
+
     if (anode == NULL) {
       printf("No node read in yet named %s\n",name);
       return 1;
@@ -710,22 +748,28 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
 	wincread = 1;
       }
       else if (sscanf(line," wx = %lf%n",&dumb,&skip) == 1) {
-	if (widthdir == NULL) 
-	  widthdir = (double *)MattAlloc(3,sizeof(double));
+	if (widthdir == NULL)
+    {
+      sysALLOC(widthdir,3,double,ON,IND,indsys,sysAllocTypeGeneric);
+    }
 	widthdir[XX] = units*dumb;
 	line += skip;
 	wxread = 1;
       }
       else if (sscanf(line," wy = %lf%n",&dumb,&skip) == 1) {
-	if (widthdir == NULL) 
-	  widthdir = (double *)MattAlloc(3,sizeof(double));
+	if (widthdir == NULL)
+    {
+      sysALLOC(widthdir,3,double,ON,IND,indsys,sysAllocTypeGeneric);
+    }
 	widthdir[YY] = units*dumb;
 	line += skip;
 	wyread = 1;
       }
       else if (sscanf(line," wz = %lf%n",&dumb,&skip) == 1) {
-	if (widthdir == NULL) 
-	  widthdir = (double *)MattAlloc(3,sizeof(double));
+	if (widthdir == NULL)
+    {
+      sysALLOC(widthdir,3,double,ON,IND,indsys,sysAllocTypeGeneric);
+    }
 	widthdir[ZZ] = units*dumb;
 	line += skip;
 	wzread = 1;
@@ -747,7 +791,7 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
     } /* while not blank */
 
   if (hread == 0) {
-    if (defaults.ish == 1) 
+    if (defaults.ish == 1)
       height = defaults.h;
     else {
       printf("H not given for seg %s\n",segname);
@@ -755,7 +799,7 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
     }
   }
   if (wread == 0) {
-    if (defaults.isw == 1) 
+    if (defaults.isw == 1)
       width = defaults.w;
     else {
       printf("W not given for seg %s\n",segname);
@@ -769,7 +813,7 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
   }
 #endif
   if (sigmaread == 0) {
-    if (defaults.issigma == 1) 
+    if (defaults.issigma == 1)
       sigma = defaults.sigma;
 #if SUPERCON == ON
     else {
@@ -784,28 +828,28 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
          * behavior.
          */
         /*
-        printf("Sigma/rho/lambda not given for seg %s\n",segname); 
-        return 1;   
+        printf("Sigma/rho/lambda not given for seg %s\n",segname);
+        return 1;
         */
       }
     }
 #else
     else {
-      printf("Sigma or rho not given for seg %s\n",segname); 
-      return 1;   
+      printf("Sigma or rho not given for seg %s\n",segname);
+      return 1;
     }
 #endif
   }
   if (hincread == 0) {
-    if (defaults.ishinc == 1) 
+    if (defaults.ishinc == 1)
       hinc = defaults.hinc;
-    else 
+    else
       hinc = 1;
   }
   if (wincread == 0) {
-    if (defaults.iswinc == 1) 
+    if (defaults.iswinc == 1)
       winc = defaults.winc;
-    else 
+    else
       winc = 1;
   }
   if (rwread == 0) {
@@ -827,7 +871,7 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
      return 1;
     }
   }
-      
+
   if (rw < 1.0) {
     printf("Error: ratio of adjacent fils less than 1.0 for seg: %s\n",
 	   segname);
@@ -857,12 +901,12 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
     printf("   Define a new normal node as its end and then '.equiv' it to the ground plane\n");
     return 1;
   }
-   
+
   seg = makeseg(segname, node[0], node[1], height, width, sigma,
 #if SUPERCON == ON
         lambda,
 #endif
-        hinc, winc, rh, rw, widthdir, indsys->num_segs, type, indsys);
+        hinc, winc, rh, rw, widthdir, indsys->num_segs, type, indsys, 1);
 
 #if 1 == 0
   /* add segment to linked list */
@@ -877,7 +921,7 @@ int addseg(char *line, SYS *indsys, int type, SEGMENT **retseg)
 #endif
 
   *retseg = seg;
-
+  //free(segname);
   return 0;
 }
 
@@ -885,9 +929,9 @@ SEGMENT *makeseg(char *name, NODES *node0, NODES *node1, double height,
     double width, double sigma,
 #if SUPERCON == ON
     double lambda,
-#endif  
+#endif
     int hinc, int winc, double r_height, double r_width, double *widthdir,
-    int number, int type, SYS *indsys)
+    int number, int type, SYS *indsys, int flag)
     /* double *widthdir; if width is not || to x-y plane and perpendicular to */
     /*                   the length, then this is 3 element vector in         */
     /*                   in the direction of width                            */
@@ -903,12 +947,13 @@ SEGMENT *makeseg(char *name, NODES *node0, NODES *node1, double height,
     /* double r_height, r_width; ratio of adjacent fils for assignFil()       */
     /* SYS *indsys;      nonNULL if we are to add to system linked list       */
 {
+  ASSERT(indsys!=0);
 
-  SEGMENT *seg;
+  SEGMENT *seg = NULL;
 
-  seg = (SEGMENT *)MattAlloc(1, sizeof(SEGMENT));
+  sysALLOC(seg,1,SEGMENT,ON,IND,indsys,sysAllocTypeSegment);
+  sysALLOC(seg->name,strlen(name) + 1,char,ON,IND,indsys,sysAllocTypeGeneric);
 
-  seg->name = (char *)MattAlloc(strlen(name) + 1, sizeof(char));
   strcpy(seg->name, name);
   seg->widthdir = widthdir;
   seg->number = number ;
@@ -922,11 +967,11 @@ SEGMENT *makeseg(char *name, NODES *node0, NODES *node1, double height,
   seg->sigma = sigma;
 #if SUPERCON == ON
   seg->lambda = lambda;
-#endif  
+#endif
   seg->node[0] = node0;
   seg->node[1] = node1;
-  add_to_connected_segs(node0, seg, NULL);
-  add_to_connected_segs(node1, seg, NULL);
+  add_to_connected_segs(indsys,node0, seg, NULL);
+  add_to_connected_segs(indsys,node1, seg, NULL);
 
   seg->length = sqrt( (node0->x - node1->x)*(node0->x - node1->x)
 		     + (node0->y - node1->y)*(node0->y - node1->y)
@@ -945,7 +990,8 @@ SEGMENT *makeseg(char *name, NODES *node0, NODES *node1, double height,
 
   seg->next = NULL;
 
-  if (indsys != NULL) {
+  if (flag >0)
+  {
     /* add segment to linked list */
     if (indsys->segment == NULL) {
       indsys->segment = seg;
@@ -979,10 +1025,10 @@ int addgroundplane(char *line, SYS *indsys, GROUNDPLANE **retplane)
   NODELIST *listpointer;         /* pointer to a single element in the list */
   HoleList *list_of_holes, *holep; /* linked lists of holes to be made. */
   ContactList *list_of_contacts, *contactp; /* linked lists of contacts. */
-  static char nodename[80];     
+  static char nodename[80];
   char *coordinate_string;
   double dumbx, dumby, dumbz;
- 
+
   /* plane calculation variables */
   int nodes1, nodes2, checksum;
   double x, y, z, seghei, rh;
@@ -1020,9 +1066,11 @@ int addgroundplane(char *line, SYS *indsys, GROUNDPLANE **retplane)
   relx = rely = relz = 0;
 
   err = 0;
+  templine=NULL;
 
   /* allocate space for the groundplane */
-  grndp = (GROUNDPLANE *)MattAlloc(1, sizeof(GROUNDPLANE));
+  grndp=0;
+  sysALLOC(grndp,1,GROUNDPLANE,ON,IND,indsys,sysAllocTypeGroundplane);
   grndp->indsys = indsys;
   grndp->usernodes = NULL;
   grndp->fake_seg_list = NULL;
@@ -1030,29 +1078,31 @@ int addgroundplane(char *line, SYS *indsys, GROUNDPLANE **retplane)
   grndp->lambda = defaults.lambda;
   grndp->sigma = 0.0;
 #else
-  grndp->sigma = defaults.sigma;   
+  grndp->sigma = defaults.sigma;
 #endif
   grndp->rh = defaults.rh;
   grndp->hinc = 1;
   grndp->filename = NULL;
   grndp->nonuni = NULL;
-  coordinate_string = (char *)MattAlloc(1000, sizeof(char));
+  coordinate_string = NULL;
+  sysALLOC(coordinate_string,1000,char,ON,IND,indsys,sysAllocTypeGeneric);
   list_of_nodes = NULL;
   list_of_holes = holep = NULL;
   list_of_contacts = contactp = NULL;
 
   /* read in the name of the groundplane */
   if (sscanf(line, "%s%n",name,&skip) != 1) {
-    fprintf(stderr, "addgroundplane: hey, no fair\n"); 
+    fprintf(stderr, "addgroundplane: hey, no fair\n");
     exit(1);
   }
 
-  grndp->name = (char *)MattAlloc(strlen(name) + 1, sizeof(char));
+  sysALLOC(grndp->name,strlen(name) + 1,char,ON,IND,indsys,sysAllocTypeGeneric);
   strcpy(grndp->name, name);
   line += skip;
 
   /* read in groundplane specifications */
-  while(notblankline(line)){
+  while(notblankline(line))
+  {
     if(sscanf (line, " x1 = %lf%n",&dumb, &skip) == 1){
       grndp->x[0] = xt[0] = dumb*units;
       line += skip;
@@ -1150,71 +1200,89 @@ int addgroundplane(char *line, SYS *indsys, GROUNDPLANE **retplane)
     else if (sscanf(line," nhinc = %d%n",&dumbi,&skip) == 1) {
       grndp->hinc = dumbi;
       line += skip;
-    }    
+    }
     else if (sscanf(line," rh = %lf%n",&dumb,&skip) == 1) {
       grndp->rh = dumb;
       line += skip;
     }
-    else if (sscanf(line," file = %s%n",filename,&skip) == 1) {
-      grndp->filename = (char *)MattAlloc(strlen(filename) + 1, sizeof(char));
+    else if (sscanf(line," file = %s%n",filename,&skip) == 1)
+    {
+      sysALLOC(grndp->filename,strlen(filename) + 1,char,ON,IND,indsys,sysAllocTypeGeneric);
       strcpy(grndp->filename, filename);
       filenameread = 1;
       line += skip;
     }
-    else if (is_next_word("hole",line) == TRUE) {
-      list_of_holes = make_holelist(list_of_holes, line, 
-				    units, relx, rely, relz, &skip);
-      line += skip;
-    }
-    else if (is_next_word("contact",line) == TRUE) {
-      list_of_contacts = make_contactlist(list_of_contacts, line, 
-				    units, relx, rely, relz, &skip);
-      line += skip;
-    }
-    /* Read in a ground plane node reference */
-    else if(sscanf (line, "%s %s%n", nodename, coordinate_string, &skip) == 2
-	    && ((nodename[0] == 'n') && (coordinate_string[0] == '(') )){
-      /* allocate space for the list_of_nodes */
-      if(list_of_nodes == NULL){         /* first one in the list */
-	list_of_nodes = (NODELIST *)Gmalloc(1* sizeof(NODELIST));
-	list_of_nodes->name = (char *)Gmalloc( (strlen(nodename) + 1)* sizeof(char));
-	listpointer = list_of_nodes;
-	listpointer->next = NULL;
-      } else {
-	listpointer->next = (NODELIST *)Gmalloc(1* sizeof(NODELIST));
-	listpointer = listpointer->next;
-	listpointer->name = (char *)Gmalloc( (strlen(nodename) + 1)* sizeof(char));
-	listpointer->next = NULL;
+    else
+      if (is_next_word("hole",line) == TRUE)
+      {
+        list_of_holes = make_holelist(indsys,list_of_holes, line,
+		  		    units, relx, rely, relz, &skip);
+        line += skip;
       }
-      
-      if(sscanf (coordinate_string, "( %lf , %lf , %lf )",&dumbx, 
-		 &dumby, &dumbz) == 3){
-	/* all the coordinates are given */
+      else
+      if (is_next_word("contact",line) == TRUE)
+      {
+        list_of_contacts = make_contactlist(indsys, list_of_contacts, line,
+		  		    units, relx, rely, relz, &skip);
+        line += skip;
       }
-      else if(sscanf (coordinate_string, "( , %lf, %lf )", &dumby, &dumbz) == 2){
-	/* missing the x-coordinate */
-	dumbx = 0; /*find_coordinate(grndp, 0.0,  dumby, dumbz, 0);*/
+      /* Read in a ground plane node reference */
+      else
+        if(sscanf (line, "%s %s%n", nodename, coordinate_string, &skip) == 2
+	      && ((nodename[0] == 'n') && (coordinate_string[0] == '(') ))
+      {
+        /* allocate space for the list_of_nodes */
+        if(list_of_nodes == NULL)
+        {         /* first one in the list */
+          sysALLOC(list_of_nodes,1,NODELIST,ON,IND,indsys,sysAllocTypeNodeList);
+	      listpointer = list_of_nodes;
+        }
+        else
+        {
+          sysALLOC(listpointer->next,1,NODELIST,ON,IND,indsys,sysAllocTypeNodeList);
+	      listpointer = listpointer->next;
+        }
+        sysALLOC(listpointer->name,strlen(nodename) + 1,char,ON,IND,indsys,sysAllocTypeGeneric);
+	    listpointer->next = NULL;
+
+        if(sscanf (coordinate_string, "( %lf , %lf , %lf )",&dumbx,
+		   &dumby, &dumbz) == 3)
+        {
+	      /* all the coordinates are given */
+        }
+        else
+          if(sscanf (coordinate_string, "( , %lf, %lf )", &dumby, &dumbz) == 2)
+          {
+	         /* missing the x-coordinate */
+	          dumbx = 0; /*find_coordinate(grndp, 0.0,  dumby, dumbz, 0);*/
+          }
+          else
+            if(sscanf (coordinate_string, "( %lf ,  , %lf)", &dumbx, &dumbz) == 2)
+            {
+	          /* missing the y-coordinate */
+	          dumby = 0 ;  /* find_coordinate(grndp, dumbx, 0.0, dumbz, 1); */
+            }
+            else
+              if(sscanf (coordinate_string, "( %lf , %lf , )", &dumbx, &dumby) == 2)
+              {
+	            /* missing the z-coordinate */
+	            dumbz = 0; /*find_coordinate(grndp, dumbx, dumby, 0.0, 2);*/
+              }
+              else
+              {
+                printf("Error: coordinates do not match correctly %s.\n",coordinate_string);
+	            printf("  Are there spaces in the string?\n");
+	            exit(1);
+              }
+        make_nodelist(listpointer, nodename, dumbx*units, dumby*units, dumbz*units);
+        line += skip;
       }
-      else if(sscanf (coordinate_string, "( %lf ,  , %lf)", &dumbx, &dumbz) == 2){
-	/* missing the y-coordinate */
-	dumby = 0 ;  /* find_coordinate(grndp, dumbx, 0.0, dumbz, 1); */
+      else
+      {
+        printf("don't know which piece this is in groundplane %s: %s\n",name,
+	       line);
+        return(1);
       }
-      else if(sscanf (coordinate_string, "( %lf , %lf , )", &dumbx, &dumby) == 2){
-	/* missing the z-coordinate */
-	dumbz = 0; /*find_coordinate(grndp, dumbx, dumby, 0.0, 2);*/
-      } else {
-	printf("Error: coordinates do not match correctly %s.\n",coordinate_string);
-	printf("  Are there spaces in the string?\n");
-	exit(1);
-      }
-      make_nodelist(listpointer, nodename, dumbx*units, dumby*units, dumbz*units);
-      line += skip;
-    }     	
-    else {
-      printf("don't know which piece this is in groundplane %s: %s\n",name,
-	     line);
-      return(1);
-    }
   }/* while not a blank line */
 
   /* do checks to verify the line was read correctly */
@@ -1222,7 +1290,7 @@ int addgroundplane(char *line, SYS *indsys, GROUNDPLANE **retplane)
   if (grndp->sigma == 0.0) {
     if (defaults.issigma || grndp->lambda == 0.0)
       grndp->sigma = defaults.sigma;
-  }  
+  }
 #endif
   if(xred != 3) {
     printf(" x coordinate not given for plane\n");
@@ -1247,7 +1315,7 @@ int addgroundplane(char *line, SYS *indsys, GROUNDPLANE **retplane)
     }
     return 1;
   }
-  
+
   if(segheiread == 0){
     printf("Thickness not given for plane %s\n",grndp->name);
     return 1;
@@ -1296,7 +1364,7 @@ nonuniform discretization file %s\n",grndp->filename);
     printf("coordinates not set up correctly... not perpendicular\n");
     exit(1);
   }
-  
+
   /* finding fourth corner point of the plane */
   grndp->x[3] = xt[3] = (xt[o2] + xt[o1] - xt[mid]);
   grndp->y[3] = yt[3] = (yt[o2] + yt[o1] - yt[mid]);
@@ -1317,10 +1385,10 @@ nonuniform discretization file %s\n",grndp->filename);
 
     /*finding segment widths for both segment orientations */
     tseg1 = grndp->seg1;
-    tseg2 = grndp->seg2; 
+    tseg2 = grndp->seg2;
     segfull1 = findsegmentwidth(xt, yt, zt, mid, o2, o1, tseg2);
     segfull2 = findsegmentwidth(xt, yt, zt, mid, o1, o2, tseg1);
-    
+
     /* determine if segwid1 was specified and if it is ok */
     if (segwid1 < 0)
       segwid1 = segfull1;
@@ -1330,7 +1398,7 @@ nonuniform discretization file %s\n",grndp->filename);
 	printf(" Using segwid1 = %lg\n", segfull1);
 	segwid1 = segfull1;
       }
-    
+
     /* determine if segwid2 was specified and if it is ok */
     if (segwid2 < 0)
       segwid2 = segfull2;
@@ -1340,30 +1408,31 @@ nonuniform discretization file %s\n",grndp->filename);
 	printf(" Using segwid2 = %lg\n", segfull2);
 	segwid2 = segfull2;
       }
-    
+
     /* save some values */
     grndp->segwid1 = segwid1;
     grndp->segwid2 = segwid2;
-    
+
     /* setup parameters for laying out nodes and segments */
     xinit = xt[mid];
     yinit = yt[mid];
     zinit = zt[mid];
     grndp->num_nodes1 = nodes1 = tseg1 + 1;
     grndp->num_nodes2 = nodes2 = tseg2 + 1;
-    
+
     /* allocate the space for segments, nodes, and temporary variables */
     dumbi = 15 + ((tseg1 + tseg2) * 15);
-    
-    templine = (char *)MattAlloc(dumbi + 1, sizeof(char));
-    grndp->pnodes = (NODES ***)MatrixAlloc(nodes1, nodes2, sizeof(NODES *));
-    grndp->segs1 = (SEGMENT ***)MatrixAlloc(tseg1, nodes2, sizeof(SEGMENT *));
-    grndp->segs2 = (SEGMENT ***)MatrixAlloc(nodes1, tseg2, sizeof(SEGMENT *));
-    
+
+    sysALLOC(templine,dumbi + 1,char,ON,IND,indsys,sysAllocTypeGeneric);
+
+    grndp->pnodes = (NODES ***)sysMatrixAlloc(indsys, nodes1, nodes2, sizeof(NODES *));
+    grndp->segs1 = (SEGMENT ***)sysMatrixAlloc(indsys, tseg1, nodes2, sizeof(SEGMENT *));
+    grndp->segs2 = (SEGMENT ***)sysMatrixAlloc(indsys, nodes1, tseg2, sizeof(SEGMENT *));
+
     /* finding increments from (mid) to (o1) and from (mid) to (o2) */
     doincrement(xt[o1], yt[o1], zt[o1], xinit, yinit, zinit, tseg1, &dx1, &dy1, &dz1);
     doincrement(xt[o2], yt[o2], zt[o2], xinit, yinit, zinit, tseg2, &dx2, &dy2, &dz2);
-    
+
     grndp->d1 = mag(dx1, dy1, dz1);
     grndp->d2 = mag(dx2, dy2, dz2);
     grndp->ux1 = dx1/grndp->d1;
@@ -1373,33 +1442,33 @@ nonuniform discretization file %s\n",grndp->filename);
     grndp->uy2 = dy2/grndp->d2;
     grndp->uz2 = dz2/grndp->d2;
     grndp->unitdiag = mag(dx1+dx2,dy1+dy2, dz1+dz2);
-    
+
     /* lay out all the nodes and the segments from (mid) to (o1) */
     for(i = 0; i < nodes2; i++){
-      x = xinit + (dx2 * i); 
-      y = yinit + (dy2 * i); 
+      x = xinit + (dx2 * i);
+      y = yinit + (dy2 * i);
       z = zinit + (dz2 * i);
-    
+
       /* verifying coordinates */
       checksum = checkplaneformula(xt, yt, zt, x, y, z, mid, o1, o2);
 
       sprintf(templine, "n%s0_%d",grndp->name, i);
-      tempnode = makenode(templine, indsys->num_nodes, x, y, z, GPTYPE, indsys);
+      tempnode = makenode(templine, indsys->num_nodes, x, y, z, GPTYPE, indsys,1 );
       tempnode->gp = grndp;	/* set plane pointer */
       tempnode->s1 = 0;
       tempnode->s2 = i;
 
       grndp->pnodes[0][i] = tempnode;
-   
+
       for( j = 1; j < nodes1; j++){
-    
-	x = x + dx1; 
-	y = y + dy1; 
+
+	x = x + dx1;
+	y = y + dy1;
 	z = z + dz1;
-      
+
 	sprintf(templine, "n%s%d_%d",grndp->name, j, i);
-	tempnode = makenode(templine, indsys->num_nodes, x, y, z, 
-			    GPTYPE, indsys);
+	tempnode = makenode(templine, indsys->num_nodes, x, y, z,
+			    GPTYPE, indsys, 1);
 	tempnode->gp = grndp;	/* set plane pointer */
 	tempnode->s1 = j;
 	tempnode->s2 = i;
@@ -1413,27 +1482,31 @@ nonuniform discretization file %s\n",grndp->filename);
 
       }
     }
-    
+
     /* Remove (mark) nodes that are part of holes */
     for(holep = list_of_holes; holep != NULL; holep = holep->next)
       make_holes(holep, grndp);
-    
+
     /* finding width direction for segments along (mid -> o1) vector */
     /* [this direction is the unit vector from (mid) to (o2) */
-    /* dounitvector(xt[o2] , yt[o2], zt[o2], xinit, yinit, zinit, 
+    /* dounitvector(xt[o2] , yt[o2], zt[o2], xinit, yinit, zinit,
        &wx, &wy, &wz);*/
     /* I changed the order so that the height vector points in the same  */
     /*  direction for all segs in the plane.  Makes assignFil consistent */
     /*  and meshes tighter if nhinc > 1.   MK  8/93                      */
     dounitvector(xinit, yinit, zinit, xt[o2] , yt[o2], zt[o2], &wx, &wy, &wz);
-    
+
     /* layout the segments from (mid) to (o1) */
-    for(i = 0; i < nodes2; i++){
-      for(j = 0; j < (nodes1 - 1); j++){
+    for(i = 0; i < nodes2; i++)
+    {
+      for(j = 0; j < (nodes1 - 1); j++)
+      {
 
 	/* Make sure nodes aren't part of a hole */
-	if (!is_hole(grndp->pnodes[j][i]) && !is_hole(grndp->pnodes[j+1][i])) {
-	  widthdir = (double *)MattAlloc(3, sizeof(double));
+	if (!is_hole(grndp->pnodes[j][i]) && !is_hole(grndp->pnodes[j+1][i]))
+    {
+      widthdir=NULL;
+      sysALLOC(widthdir,3,double,ON,IND,indsys,sysAllocTypeGeneric);
 	  widthdir[XX] = wx; widthdir[YY] = wy; widthdir[ZZ] = wz;
 	  sprintf(templine, "e1%s%d_%d",grndp->name, j, i);
 
@@ -1443,8 +1516,8 @@ nonuniform discretization file %s\n",grndp->filename);
 			    grndp->lambda,
 #endif
 			    grndp->hinc, 1,
-			    grndp->rh, dontcare, widthdir, indsys->num_segs, 
-			    GPTYPE, indsys);
+			    grndp->rh, dontcare, widthdir, indsys->num_segs,
+			    GPTYPE, indsys,1 );
 
 	  grndp->segs1[j][i] = tempseg;
 	}
@@ -1452,18 +1525,21 @@ nonuniform discretization file %s\n",grndp->filename);
 	  grndp->segs1[j][i] = NULL;
       }
     }
-    
+
     /* finding the width direction of segments along the (mid - o2) vector */
     /* [this direction is the unit vector from (mid) to (o1) */
     dounitvector(xt[o1], yt[o1], zt[o1], xinit, yinit, zinit, &wx, &wy, &wz);
-    
+
     /* layout the segments from (mid) to (o1) */
     for(i = 0; i < (nodes2 - 1); i++){
       for(j = 0; j < nodes1; j++){
 
 	/* Make sure nodes aren't part of a hole */
-	if (!is_hole(grndp->pnodes[j][i]) && !is_hole(grndp->pnodes[j][i+1])) {
-	  widthdir = (double *)MattAlloc(3, sizeof(double));
+	if (!is_hole(grndp->pnodes[j][i]) && !is_hole(grndp->pnodes[j][i+1]))
+    {
+      widthdir=NULL;
+      sysALLOC(widthdir,3,double,ON,IND,indsys,sysAllocTypeGeneric);
+
 	  widthdir[XX] = wx; widthdir[YY] = wy; widthdir[ZZ] = wz;
 	  sprintf(templine, "e2%s%d_%d",grndp->name, j, i);
 	  tempseg = makeseg(templine, grndp->pnodes[j][i], grndp->pnodes[j][i+1],
@@ -1472,8 +1548,8 @@ nonuniform discretization file %s\n",grndp->filename);
 			    grndp->lambda,
 #endif
 			    grndp->hinc, 1,
-			    grndp->rh, dontcare, widthdir, indsys->num_segs, 
-			    GPTYPE, indsys);
+			    grndp->rh, dontcare, widthdir, indsys->num_segs,
+			    GPTYPE, indsys,1 );
 
 	  grndp->segs2[j][i] = tempseg;
 	}
@@ -1485,63 +1561,70 @@ nonuniform discretization file %s\n",grndp->filename);
     grndp->numesh = grndp->seg1 * grndp->seg2; /* number of meshes in plane */
 
   } /* if !is_nonuni_gp(), ie old gp code */
-  else {
+  else
+  {
     /******** READ a NONUNIFORM plane ********/
-    if (process_plane(grndp, nonuni_fp, indsys) != 0)
+    if (process_plane(indsys, grndp, nonuni_fp) != 0)
       return 1;
-
-    templine = (char *)MattAlloc(100, sizeof(char));
+    sysALLOC(templine,100,char,ON,IND,indsys,sysAllocTypeGeneric);
 
   }
 
   /* equivalencing extra reference nodes to groundplane nodes */
-  if(list_of_nodes != NULL){
+  if(list_of_nodes != NULL)
+  {
     if (indsys->opts->debug == ON)
       printf("adding reference nodes...\n");
-    
-    for(i = 0, listpointer = list_of_nodes; listpointer != NULL; 
-	listpointer = listpointer->next, i++){
-      
-      if (!is_nonuni_gp(grndp)) {
-	tempnode = find_nearest_gpnode(listpointer->x + relx, 
-				       listpointer->y + rely, 
+
+    for(i = 0, listpointer = list_of_nodes; listpointer != NULL;
+	listpointer = listpointer->next, i++)
+	{
+      if (!is_nonuni_gp(grndp))
+      {
+	    tempnode = find_nearest_gpnode(listpointer->x + relx,
+				       listpointer->y + rely,
 				       listpointer->z + relz,
 				       grndp,&dummy1, &dummy2);
       }
-      else {
-	sprintf(templine, "n%s_pseudo_%d", grndp->name, i);
-	tempnode = get_or_make_nearest_node(templine, indsys->num_nodes, 
+      else
+      {
+	    sprintf(templine, "n%s_pseudo_%d", grndp->name, i);
+	    tempnode = get_or_make_nearest_node(templine, indsys->num_nodes,
 					    listpointer->x + relx,
-			    listpointer->y + rely, listpointer->z + relz, 
+			    listpointer->y + rely, listpointer->z + relz,
 			    indsys, grndp->nonuni, grndp->usernodes);
       }
-	  
-      if (is_hole(tempnode)) {
-	fprintf(stderr,"Warning: ground plane node %s is in a hole.\n \
-This could lead to an \"isolated section of conductor\" error if this \n \
-node is referenced later.\n",listpointer->name);
+
+      if (is_hole(tempnode))
+      {
+	    fprintf(stderr,"Warning: ground plane node %s is in a hole.\n \
+             This could lead to an \"isolated section of conductor\" error if this \n \
+             node is referenced later.\n",listpointer->name);
       }
       /* add this name to the master list */
-      append_pnlist(create_pn(listpointer->name, tempnode), indsys);
-      if (is_node_in_list(tempnode, grndp->usernodes) == 1) {
-	fprintf(stderr, "Warning: ground plane node %s coincident with another node\n", listpointer->name);
-	if (is_nonuni_gp(grndp))
-	  fprintf(stderr, "  at coordinates (%lg, %lg, %lg) (meters)\n",
-		  tempnode->x, tempnode->y, tempnode->z);
+      append_pnlist(create_pn(indsys,listpointer->name, tempnode), indsys);
+      if (is_node_in_list(tempnode, grndp->usernodes) == 1)
+      {
+	    fprintf(stderr, "Warning: ground plane node %s coincident with another node\n", listpointer->name);
+	    if (is_nonuni_gp(grndp))
+	      fprintf(stderr, "  at coordinates (%lg, %lg, %lg) (meters)\n",
+		    tempnode->x, tempnode->y, tempnode->z);
       }
-      else {
-	if (is_nonuni_gp(grndp)) {
+      else
+      {
+	    if (is_nonuni_gp(grndp))
+	    {
           if (indsys->opts->debug == ON)
             /* announce effective circumference of contact point */
             printf("Effective perimeter of contact point %s in meters: %lg\n",
                    listpointer->name, get_perimeter(tempnode->gp_node));
-	}
-	/* make a pseudo_seg between other ground plane usernodes */
-	/* (to be used by graph searching algs) */
-	grndp->fake_seg_list 
-	  = make_new_fake_segs(tempnode, grndp->usernodes, grndp->fake_seg_list);
-	grndp->usernodes = add_node_to_list(tempnode, grndp->usernodes);
-	tempnode->examined = 0;  /* examine these */
+	    }
+	    /* make a pseudo_seg between other ground plane usernodes */
+	    /* (to be used by graph searching algs) */
+	    grndp->fake_seg_list
+	      = make_new_fake_segs(indsys, tempnode, grndp->usernodes, grndp->fake_seg_list);
+	    grndp->usernodes = add_node_to_list(indsys,tempnode, grndp->usernodes);
+	    tempnode->examined = 0;  /* examine these */
 /*      sprintf(templine,".equiv %s %s \n",listpointer->name, tempnode->name);
         equivnodes(templine, indsys); */
       }
@@ -1576,40 +1659,53 @@ node is referenced later.\n",listpointer->name);
   grndp->next = NULL;
 
   /* check if another groundplane has the same name */
-  onegp = indsys->planes; 
+  onegp = indsys->planes;
   while(onegp != NULL && strcmp(onegp->name,grndp->name) != 0)
+  {
     onegp = onegp->next;
+  }
 
-  if (onegp != NULL) {
+  if (onegp != NULL)
+  {
     fprintf(stderr, "Error: Two ground planes with the name: %s\n",
 	    grndp->name);
     err = 1;
   }
-  
+
   /* adding plane to linked list of groundplanes in indsys */
-  if(indsys->planes == NULL){
+  if(indsys->planes == NULL)
+  {
     indsys->planes = grndp;
     indsys->endplane = grndp;
   }
-  else {
+  else
+  {
     indsys->endplane->next = grndp;
     indsys->endplane = grndp;
   }
-  
+
   /* doing .external if the plane is a conductor */
-  if(grndp->external == 1){
+  if(grndp->external == 1)
+  {
 #if 1==0
     sprintf(templine, ".external %s ",grndp->innode->name);
-    tempath = path_through_gp(grndp->innode, grndp->outnode, grndp);
+    tempath = path_through_gp(indsys,grndp->innode, grndp->outnode, grndp);
 
     if(tempath == NULL){
       printf("tempath is NULL! \n");
       exit(1);
     }
 
-    for(pathp = tempath; pathp != NULL; pathp = pathp->next){
+    pathp = tempath;
+    while (pathp != NULL){
       strcat(templine, " ");                 /* spacing between segments */
       strcat(templine, pathp->seg->name);
+	  {
+	    SPATH *tt;
+	    tt=temppath;
+     	pathp = pathp->next;
+        sysFree(indsys, tt);
+	  }
     }
 
     strcat(templine, " \n");             /* end of line marker */
@@ -1617,9 +1713,8 @@ node is referenced later.\n",listpointer->name);
     addexternal(templine, indsys);
 #endif
   }
-  /* end .external layout for the conductor */
 
-  *retplane = grndp;                                     
+  *retplane = grndp;
   return err;
   }
 /*------------------------------------------------------------------------------*/
@@ -1635,20 +1730,22 @@ int nothing(char *line)
   return (1);
 }
 
-char *getaline(FILE *fp)
+char *getaline(SYS* indsys, FILE *fp)
 {
   static char *all_lines = NULL;
   static int length = 0;
-  char *line; 
+  char *line;
   int newlength;
 
-  if (length == 0) {
+  if (length == 0)
+  {
     length = MAXLINE;
-    all_lines = (char *)malloc(length*sizeof(char));
+    sysALLOC(all_lines,length,char,ON,IND,indsys,sysAllocTypeGeneric);
   }
 
   line = getoneline(fp);
-  if (line == NULL) {
+  if (line == NULL)
+  {
     fprintf(stderr, "Unexpected end of file\n");
     exit(1);
   }
@@ -1656,20 +1753,23 @@ char *getaline(FILE *fp)
   strcpy(all_lines, line);
 
   /* concatenate any lines beginning with a '+' to all_lines */
-  while( (line = plusline(fp)) != NULL) {
-    if ((newlength = strlen(all_lines) + strlen(line) + 1) > length) {
-      if ( (all_lines = realloc(all_lines, MAX(newlength,length+MAXLINE))) 
-	  == NULL ) {
-	fprintf(stderr,"couldn't get more space for a line. Needed %d chars\n",
+  while( (line = plusline(fp)) != NULL)
+  {
+    if ((newlength = strlen(all_lines) + strlen(line) + 1) > length)
+    {
+      sysRealloc(indsys,all_lines,MAX(newlength,length+MAXLINE));
+      if ( all_lines== NULL )
+      {
+	    fprintf(stderr,"couldn't get more space for a line. Needed %d chars\n",
 		newlength);
-	exit(1);
+	    exit(1);
       }
       else
-	length = MAX(newlength,length+MAXLINE);
+	   length = MAX(newlength,length+MAXLINE);
     }
     strcat(all_lines, line);
   }
-      
+
   return all_lines;
 }
 
@@ -1696,7 +1796,7 @@ char *plusline(FILE *fp)
   }
 }
 
-/* a variable just for the following functions */   
+/* a variable just for the following functions */
 static int keep = 0;
 
 char *getoneline(FILE *fp)
@@ -1710,10 +1810,10 @@ char *getoneline(FILE *fp)
   }
   else
     do {
-      retchar = fgets(line, MAXLINE, fp); 
+      retchar = fgets(line, MAXLINE, fp);
     } while(retchar != NULL && !notblankline(line));
 
-  if (retchar != NULL && strlen(line) == MAXLINE - 1) 
+  if (retchar != NULL && strlen(line) == MAXLINE - 1)
     fprintf(stderr,"Warning: line may be too long:\n%s\n",line);
 
   if (retchar == NULL)
@@ -1731,7 +1831,7 @@ void savealine(char *line)
   else
     keep = 1;
 }
-  
+
 int notblankline(char *string)
 {
    while( *string!='\0' && isspace(*string))

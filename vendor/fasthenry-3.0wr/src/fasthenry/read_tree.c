@@ -5,14 +5,15 @@
 #include <string.h>
 #include "induct.h"
 #include "gp.h"
+#include "readGeom.h"
 
 #define GP_DEBUG FALSE
 
-  
+
 #define MAXLINE 1000
 
 /* SRW */
-int process_plane(GROUNDPLANE*, FILE*, SYS*);
+int process_plane(SYS*, GROUNDPLANE*, FILE*);
 void set_gp_coord_system(GROUNDPLANE*, Nonuni_gp*);
 void get_nonuni_coords(double, double, double, Nonuni_gp*, double*, double*,
     double*);
@@ -20,37 +21,36 @@ void get_global_coords(double, double, double, Nonuni_gp*, double*, double*,
     double*);
 void get_global_vec(double, double, double, Nonuni_gp*, double*, double*,
     double*);
-int readTree(FILE*, Nonuni_gp*);
+int readTree(SYS*,FILE*, Nonuni_gp*);
 void set_cell_coords(Gcell*, double, double, double, double);
 void set_bi_coords(Bi*, double, double, double, double);
 void set_grid_coords(Grid_2d*, double, double, double, double);
-void process_tree(Nonuni_gp*);
-void resolve_nodes(Gcell*, Info*);
-void make_nodes(Gcell*, Info*);
+void process_tree(SYS*, Nonuni_gp*);
+void resolve_nodes(SYS*,Gcell*, Info*);
+void make_nodes(SYS*, Gcell*, Info*);
 G_nodes *add_to_gnodelist(G_nodes*, G_nodes*);
-void resolve_bi_children(Gcell*, Info*);
-G_edges *make_one_edge(Gcell*, Gcell*, char);
-G_edges *make_two_edge(Gcell*, Gcell*, Gcell*, char);
-Gcell *new_Gcells(int, int);
-Gcell *new_Gcell(int);
+void resolve_bi_children(SYS*, Gcell*, Info*);
+G_edges *make_one_edge(SYS*, Gcell*, Gcell*, char);
+G_edges *make_two_edge(SYS*, Gcell*, Gcell*, Gcell*, char);
+Gcell *new_Gcells(SYS*, int, int);
+Gcell *new_Gcell(SYS*, int);
 void init_Gcell(Gcell*);
-G_nodes *new_Gnode(int);
-G_nodes *make_new_node(double, double, int, Gcell*, int);
-void *gp_malloc(int);
-void Combine_edges(Gcell*, char, Gcell*, char);
-void combine_node_info(Gcell*, char, Gcell*, char);
+G_nodes *new_Gnode(SYS*, int);
+G_nodes *make_new_node(SYS*, double, double, int, Gcell*, int);
+void Combine_edges(SYS*,Gcell*, char, Gcell*, char);
+void combine_node_info(SYS*, Gcell*, char, Gcell*, char);
 void give_cell_adjaceny(Gcell*, char, Gcell*, char, G_nodes**, G_nodes**);
-void combine_nodes(Gcell*, char, G_nodes*, G_nodes*);
-void replace_node(G_nodes*, G_nodes*);
-void kill_node(G_nodes*);
-void delete_first_node(Nonuni_gp*);
-void delete_dead_nodes(Nonuni_gp*);
-void remove_and_free(G_nodes*);
-void free_g_node(G_nodes*);
+void combine_nodes(SYS*, Gcell*, char, G_nodes*, G_nodes*);
+void replace_node(SYS*, G_nodes*, G_nodes*);
+void kill_node(SYS*, G_nodes*);
+void delete_first_node(SYS*, Nonuni_gp*);
+void delete_dead_nodes(SYS*, Nonuni_gp*);
+void remove_and_free(SYS*, G_nodes*);
+void free_g_node(SYS*, G_nodes*);
 void determine_adjaceny(G_nodes*);
 G_nodes *get_adjacent_node(G_nodes*, Gcell*, char, char, Gcell*, char, char);
 G_nodes *get_other_gnode(Gcell*, char, char);
-void compute_z_fils(Nonuni_gp*);
+void compute_z_fils(SYS*, Nonuni_gp*);
 void generate_segs(Nonuni_gp*, SYS*);
 void get_width_and_shift(char, G_nodes*, Gcell*, Gcell*, double*, double*);
 void get_x_cell_vals(Gcell*, G_nodes*, Gcell*, double*, double*);
@@ -77,13 +77,14 @@ void dump_nonuni_plane_currents(Nonuni_gp*, CX*, FILE*);
 double get_perimeter(G_nodes*);
 
 
-int process_plane(GROUNDPLANE *grndp, FILE *fp, SYS *indsys)
+int process_plane(SYS* indsys, GROUNDPLANE *grndp, FILE *fp)
 {
   Nonuni_gp *gp;
   FILE *fp2;
   ContactList *contactp;
 
-  gp = (Nonuni_gp *)gp_malloc(sizeof(Nonuni_gp));
+  gp=NULL;
+  sysALLOC(gp,1,Nonuni_gp,ON,IND,indsys,sysAllocTypeNonuni_gp);
 
   /* have the two structures point to each other */
   grndp->nonuni = gp;
@@ -91,11 +92,11 @@ int process_plane(GROUNDPLANE *grndp, FILE *fp, SYS *indsys)
 
   if (fp != NULL) {
     /* read tree from file */
-    if (readTree(fp, gp) != 0)
+    if (readTree(indsys,fp, gp) != 0)
       return 1;
   }
   else {
-    gp->root_cell = new_Gcell(CLEAR);
+    gp->root_cell = new_Gcell(indsys,CLEAR);
     gp->num_cells = 1;
     gp->root_cell->index = 1;
     gp->root_cell->children = NULL;
@@ -115,38 +116,38 @@ int process_plane(GROUNDPLANE *grndp, FILE *fp, SYS *indsys)
   /* dump_leaf_cells_to_file(gp->root_cell, "hier.qui");*/
 
   gp->num_z_pts = 1;
-  gp->z_pts = (double *)gp_malloc(1*sizeof(double));
+  sysALLOC(gp->z_pts,gp->num_z_pts,double,ON,IND,indsys,sysAllocTypeGeneric);
   gp->z_pts[0] = 0.5;  /* doesn't matter */
 
   /* determine nodes and adjacencies */
-  process_tree(gp);
+  process_tree(indsys, gp);
 
   /* scan contacts for and initial grid to insure it's done first */
-  for(contactp = gp->grndp->list_of_contacts; contactp != NULL; 
+  for(contactp = gp->grndp->list_of_contacts; contactp != NULL;
       contactp = contactp->next) {
     /* there should be only one, so if more than one gets called, we'll
        get an error */
     if (strncmp("initial",contactp->func,7) == 0) {
-      make_contacts(contactp, gp);
+      make_contacts(indsys, contactp, gp);
       contactp->done = TRUE;
     }
   }
 
-  for(contactp = gp->grndp->list_of_contacts; contactp != NULL; 
+  for(contactp = gp->grndp->list_of_contacts; contactp != NULL;
       contactp = contactp->next)
     /* do all the non-initial_grid  and non equiv */
     if (contactp->done == FALSE && strncmp("equiv_rect",contactp->func,10) != 0)
       {
-        make_contacts(contactp, gp);
+        make_contacts(indsys, contactp, gp);
         contactp->done = TRUE;
       }
 
-  for(contactp = gp->grndp->list_of_contacts; contactp != NULL; 
+  for(contactp = gp->grndp->list_of_contacts; contactp != NULL;
       contactp = contactp->next)
     /* do all the non-initial_grid  and non equiv */
     if (contactp->done == FALSE && strncmp("equiv_rect",contactp->func,10) == 0)
       {
-        make_contacts(contactp, gp);
+        make_contacts(indsys, contactp, gp);
         contactp->done = TRUE;
       }
 
@@ -177,7 +178,7 @@ void set_gp_coord_system(GROUNDPLANE *grndp, Nonuni_gp *gp)
   double thickness = gp->grndp->thick;
 
   /* compute x-axis unit vector */
-  
+
   dx = x[1] - x[0];
   dy = y[1] - y[0];
   dz = z[1] - z[0];
@@ -198,7 +199,7 @@ void set_gp_coord_system(GROUNDPLANE *grndp, Nonuni_gp *gp)
 
   if (magx != grndp->length1 || magy != grndp->length2)
     GP_PANIC("How can nonuni magx and length1 be different?");
-  
+
   /* set the root cell coordinates */
   set_cell_coords(gp->root_cell, 0.0, 0.0, magx, magy);
 
@@ -239,7 +240,7 @@ void get_global_coords(double x, double y, double z, Nonuni_gp *gp,
 
   /* get global vector direction */
   get_global_vec(x, y, z, gp, &xv, &yv, &zv);
-  
+
   /* shift global vector from origin */
   *xg = gp->x0 + xv;
   *yg = gp->y0 + yv;
@@ -255,7 +256,7 @@ void get_global_vec(double x, double y, double z, Nonuni_gp *gp,
   *zg = x * gp->ux_z + y * gp->uy_z + z * gp->uz_z;
 }
 
-int readTree(FILE *fp, Nonuni_gp *gp)
+int readTree(SYS* indsys, FILE *fp, Nonuni_gp *gp)
 {
   static char line[MAXLINE];
   char *retchar;
@@ -273,7 +274,7 @@ int readTree(FILE *fp, Nonuni_gp *gp)
     fprintf(stderr, "Couldn't read first line\n");
     return 1;
   }
- 
+
 /*
   if (sscanf(line, "%d %lg %lg %lg", &num_cells, &x, &y, &thick) != 4) {
     fprintf(stderr, "First line should be an integer with total number of cells xlength ylength thickness\n");
@@ -287,7 +288,7 @@ int readTree(FILE *fp, Nonuni_gp *gp)
   }
 
   gp->num_cells = num_cells;
-  cells = new_Gcells(num_cells, CLEAR);
+  cells = new_Gcells(indsys,num_cells, CLEAR);
 
   if (cells == NULL) {
     fprintf(stderr, "Couldn't get space for %d cells\n",num_cells);
@@ -303,7 +304,7 @@ int readTree(FILE *fp, Nonuni_gp *gp)
     }
 
     /* assume binary tree */
-    numread = sscanf(line,"%d %s %s %d %d", &dum, typename, bintype, &nchild1, 
+    numread = sscanf(line,"%d %s %s %d %d", &dum, typename, bintype, &nchild1,
 		     &nchild2);
 
     if (numread != 5 && !(numread == 2 && strcmp(typename,"NONE") == 0)) {
@@ -322,31 +323,32 @@ int readTree(FILE *fp, Nonuni_gp *gp)
 	fprintf(stderr, "Err at line %d: only binary trees allowed\n",i+2);
 	return 1;
       }
-      
+
       if (dum > num_cells || nchild1 > num_cells || nchild2 > num_cells) {
 	fprintf(stderr, "Err at line %d: index out of range\n",i+2);
 	return 1;
       }
-      
+
       if (cells[dum - 1].children != NULL) {
 	fprintf(stderr, "uh oh, this cell has been defined before: %d\n",dum);
       }
-      
+
       if (cells[nchild1 - 1].parent != NULL)
 	fprintf(stderr, "uh oh, child %d for cell %d already has a parent\n",
 		nchild1, dum);
       if (cells[nchild2 - 1].parent != NULL)
 	fprintf(stderr, "uh oh, child %d for cell %d already has a parent\n",
 		nchild2, dum);
-      
+
       cell = &cells[dum - 1];
-      
+
       /* assume binary tree */
       cell->children_type = BI;
-      
-      cell->children = (void *)gp_malloc( sizeof(Bi) );
+
+      sysALLOC(cell->children,1,Bi,ON,IND,indsys,sysAllocTypeBi);
+
       bi_kids = (Bi *)cell->children;
-      
+
       if (strcmp(bintype,"NS") == 0)
 	bi_kids->type = NS;
       else if (strcmp(bintype,"EW") == 0)
@@ -355,16 +357,16 @@ int readTree(FILE *fp, Nonuni_gp *gp)
 	fprintf(stderr, "Unknown bintype at line %d\n", i+2);
 	return 1;
       }
-      
+
       bi_kids->child1 = &cells[nchild1 - 1];
       bi_kids->child2 = &cells[nchild2 - 1];
-      
+
       cells[nchild1 - 1].parent = &cells[dum - 1];
       cells[nchild2 - 1].parent = &cells[dum - 1];
-      
+
     }
   }
-  
+
 
   if (cells[0].parent != NULL) {
     fprintf(stderr, "uh oh, cells[0] has a parent but should be root cell!\n");
@@ -378,12 +380,12 @@ int readTree(FILE *fp, Nonuni_gp *gp)
   gp->ux_x = 1; gp->ux_y = 0; gp->ux_z = 0;
   gp->uy_x = 0; gp->uy_y = 1; gp->uy_z = 0;
   gp->uz_x = 0; gp->uz_y = 0; gp->uz_z = 1;
-  
+
   root_cell->x0 = root_cell->y0 = 0;
   root_cell->x1 = x;
   root_cell->y1 = y;
 */
-  
+
   return 0;
 }
 
@@ -425,7 +427,7 @@ void set_bi_coords(Bi *two_kids, double x0, double y0, double x1, double y1)
     /* west */
     set_cell_coords(two_kids->child2, x0, y0, (x0+x1)/2.0, y1);
   }
-  else 
+  else
     GP_PANIC("Unknown bi child type in set_bi_coords");
 }
 
@@ -446,17 +448,17 @@ void set_grid_coords(Grid_2d *grid, double x0, double y0, double x1, double y1)
       set_cell_coords(grid->kids[i][j], x0n, y1n - ysize, x0n + xsize, y1n);
     }
 }
-    
 
-void process_tree(Nonuni_gp *gp)
+
+void process_tree(SYS* indsys,Nonuni_gp *gp)
 {
   Info info;
 
   info.gp = gp;
-  
+
   gp->num_leaves = 0;
   gp->num_nodes = 0;
-  resolve_nodes(gp->root_cell, &info);
+  resolve_nodes(indsys,gp->root_cell, &info);
 
   /* we've set the edge info correctly */
   gp->is_edge_corrupted = FALSE;
@@ -468,7 +470,7 @@ void process_tree(Nonuni_gp *gp)
 
   /* most are already deleted, but if they were the head of the list, they
      were left in */
-  delete_dead_nodes(gp);
+  delete_dead_nodes(indsys, gp);
 
 #if GP_DEBUG == TRUE
   fprintf(stdout, "\nAfter deletion:\n");
@@ -482,24 +484,24 @@ void process_tree(Nonuni_gp *gp)
   fprint_node_list(gp->nodelist, stdout);
 #endif
 
-  compute_z_fils(gp);
+  compute_z_fils(indsys, gp);
 
 }
 
 
 /* recursive function to process tree */
-void resolve_nodes(Gcell *cell, Info *info)
+void resolve_nodes(SYS* indsys, Gcell *cell, Info *info)
 {
   switch (c_get_children_type(cell)) {
   case NONE:
     /* we are a leaf */
     if (!c_is_leaf(cell)) GP_PANIC("Not a leaf!");
-    make_nodes(cell, info);
+    make_nodes(indsys, cell, info);
     info->gp->num_leaves++;    /* update number of leaves in tree */
     break;
   case BI:
     /* recursively call for BI children */
-    resolve_bi_children(cell, info);
+    resolve_bi_children(indsys, cell, info);
     break;
   case GRID_2D:
     GP_PANIC("You haven't implemented this yet!");
@@ -514,25 +516,25 @@ void resolve_nodes(Gcell *cell, Info *info)
 /* make "nodes" for the four corners of a leaf */
 /* the information we want to collect is the cells attached to the node (4 max)
    and the adjacent nodes (4 max).  We start at the bottom with the leaves */
-void make_nodes(Gcell *cell, Info *info)
+void make_nodes(SYS* indsys,Gcell *cell, Info *info)
 {
   G_nodes *node;
   Nonuni_gp *gp = info->gp;
 
   /* NE */
-  node = make_new_node(cell->x1, cell->y1, SW, cell, ++gp->num_nodes);
+  node = make_new_node(indsys,cell->x1, cell->y1, SW, cell, ++gp->num_nodes);
   cell->bndry.nodes[NE] = node;
   gp->nodelist = add_to_gnodelist(node, gp->nodelist);
 
-  node = make_new_node(cell->x1, cell->y0, NW, cell, ++gp->num_nodes);
+  node = make_new_node(indsys,cell->x1, cell->y0, NW, cell, ++gp->num_nodes);
   cell->bndry.nodes[SE] = node;
   gp->nodelist = add_to_gnodelist(node, gp->nodelist);
 
-  node = make_new_node(cell->x0, cell->y0, NE, cell, ++gp->num_nodes);
+  node = make_new_node(indsys,cell->x0, cell->y0, NE, cell, ++gp->num_nodes);
   cell->bndry.nodes[SW] = node;
   gp->nodelist = add_to_gnodelist(node, gp->nodelist);
 
-  node = make_new_node(cell->x0, cell->y1, SE, cell, ++gp->num_nodes);
+  node = make_new_node(indsys,cell->x0, cell->y1, SE, cell, ++gp->num_nodes);
   cell->bndry.nodes[NW] = node;
   gp->nodelist = add_to_gnodelist(node, gp->nodelist);
 
@@ -573,15 +575,15 @@ G_nodes *add_to_gnodelist(G_nodes *node, G_nodes *nodelist)
   return node;
 }
 
-void resolve_bi_children(Gcell *cell, Info *info)
+void resolve_bi_children(SYS* indsys, Gcell *cell, Info *info)
 {
   Bi *two_kids;
   G_edges **edges;
 
   two_kids = (Bi *)cell->children;
 
-  resolve_nodes(two_kids->child1, info);
-  resolve_nodes(two_kids->child2, info);
+  resolve_nodes(indsys,two_kids->child1, info);
+  resolve_nodes(indsys, two_kids->child2, info);
 
 #if GP_DEBUG == TRUE
   printf("\nBefore combining binary children edges: ");
@@ -590,29 +592,29 @@ void resolve_bi_children(Gcell *cell, Info *info)
 
   /* definitely not a leaf... */
   edges = cell->bndry.edges;
-  
+
   /* combine edge information of children for parent */
   /* an edge with pieces from both children will always have the north or east
      child first, and south or west second */
   if (two_kids->type == NS) {
-    edges[NORTH] = make_one_edge(cell, two_kids->child1, NORTH);
-    edges[SOUTH] = make_one_edge(cell, two_kids->child2, SOUTH);
-    edges[EAST] = make_two_edge(cell, two_kids->child1, two_kids->child2,
+    edges[NORTH] = make_one_edge(indsys, cell, two_kids->child1, NORTH);
+    edges[SOUTH] = make_one_edge(indsys,cell, two_kids->child2, SOUTH);
+    edges[EAST] = make_two_edge(indsys, cell, two_kids->child1, two_kids->child2,
 			       EAST); /* make sure children in this order */
-    edges[WEST] = make_two_edge(cell, two_kids->child1, two_kids->child2,
+    edges[WEST] = make_two_edge(indsys, cell, two_kids->child1, two_kids->child2,
 				       WEST);
 
-    Combine_edges(two_kids->child1, SOUTH, two_kids->child2, NORTH);
+    Combine_edges(indsys,two_kids->child1, SOUTH, two_kids->child2, NORTH);
   }
   else if (two_kids->type == EW) {
-    edges[EAST] = make_one_edge(cell, two_kids->child1, EAST);
-    edges[WEST] = make_one_edge(cell, two_kids->child2, WEST);
-    edges[NORTH] = make_two_edge(cell, two_kids->child1, 
+    edges[EAST] = make_one_edge(indsys,cell, two_kids->child1, EAST);
+    edges[WEST] = make_one_edge(indsys,cell, two_kids->child2, WEST);
+    edges[NORTH] = make_two_edge(indsys, cell, two_kids->child1,
 				 two_kids->child2, NORTH);
-    edges[SOUTH] = make_two_edge(cell, two_kids->child1, 
+    edges[SOUTH] = make_two_edge(indsys, cell, two_kids->child1,
 					two_kids->child2, SOUTH);
- 
-    Combine_edges(two_kids->child1, WEST, two_kids->child2, EAST);
+
+    Combine_edges(indsys,two_kids->child1, WEST, two_kids->child2, EAST);
   }
   else
     GP_PANIC("UNKNOWN child type in resolve_bi_children");
@@ -624,17 +626,18 @@ void resolve_bi_children(Gcell *cell, Info *info)
 
 }
 
-G_edges *make_one_edge(Gcell *owner_cell, Gcell *child_cell, char dir)
+G_edges *make_one_edge(SYS* indsys, Gcell *owner_cell, Gcell *child_cell, char dir)
 {
   G_edges *edge;
   int i;
 
-  edge = (G_edges *)gp_malloc(sizeof(G_edges));
+  edge=NULL;
+  sysALLOC(edge,1,G_edges,ON,IND,indsys,sysAllocTypeG_edges);
 
   edge->cells[0] = owner_cell;
   edge->dirs[0] = dir;
   edge->num_children = 1;
-  edge->children = (Gcell **)gp_malloc(1*sizeof(Gcell *));
+  sysALLOC(edge->children,edge->num_children,Gcell *,ON,IND,indsys,sysAllocTypePtrArray);
   edge->children[0] = child_cell;
 
   for(i = 1; i < NUM_E_CELLS; i++)
@@ -643,18 +646,19 @@ G_edges *make_one_edge(Gcell *owner_cell, Gcell *child_cell, char dir)
   return edge;
 }
 
-G_edges *make_two_edge(Gcell *owner_cell, Gcell *child1, Gcell *child2,
+G_edges *make_two_edge(SYS* indsys, Gcell *owner_cell, Gcell *child1, Gcell *child2,
     char dir)
 {
   G_edges *edge;
   int i;
 
-  edge = (G_edges *)gp_malloc(sizeof(G_edges));
+  edge=NULL;
+  sysALLOC(edge,1,G_edges,ON,IND,indsys,sysAllocTypeG_edges);
 
   edge->cells[0] = owner_cell;
   edge->dirs[0] = dir;
   edge->num_children = 2;
-  edge->children = (Gcell **)gp_malloc(edge->num_children*sizeof(Gcell *));
+  sysALLOC(edge->children,edge->num_children,Gcell *,ON,IND,indsys,sysAllocTypePtrArray);
   edge->children[0] = child1;
   edge->children[1] = child2;
 
@@ -665,35 +669,26 @@ G_edges *make_two_edge(Gcell *owner_cell, Gcell *child1, Gcell *child2,
 }
 
 
-Gcell *new_Gcells(int num, int flag)
+Gcell *new_Gcells(SYS* indsys, int num, int flag)
 {
   Gcell *new;
   int i;
-  
-  new = (Gcell *)gp_malloc(num*sizeof(Gcell));
 
-  /* gp_malloc uses calloc, so don't do this */
-  /*
-  if (flag == CLEAR) 
-    for(i = 0; i < num; i++)
-      init_Gcell(new[i]);
-  */
+  new = NULL;
+  sysALLOC(new,num,Gcell,ON,IND,indsys,sysAllocTypeGcell);
+
 
   return new;
 
 }
 
-Gcell *new_Gcell(int flag)
+Gcell *new_Gcell(SYS* indsys,int flag)
 {
   Gcell *new;
 
-  new = (Gcell *)gp_malloc(sizeof(Gcell));
-  
-  /* gp_malloc uses calloc, so this is unnecessary */
-  /* 
-  if (flag == CLEAR)
-    init_Gcell(new);
-  */
+  new = NULL;
+  sysALLOC(new,1,Gcell,ON,IND,indsys,sysAllocTypeGcell);
+
 
   return new;
 }
@@ -712,15 +707,16 @@ void init_Gcell(Gcell *cell)
   cell->ishole = FALSE;
 }
 
-G_nodes *new_Gnode(int flag)
+G_nodes *new_Gnode(SYS* indsys, int flag)
 {
   int i;
   G_nodes *new;
-    
-  new = (G_nodes *)gp_malloc(sizeof(G_nodes));
+
+  new = NULL;
+  sysALLOC(new,1,G_nodes,ON,IND,indsys,sysAllocTypeG_nodes);
 
   if (flag == CLEAR) {
-    for(i = 0; i < NUMADJ; i++) 
+    for(i = 0; i < NUMADJ; i++)
       new->adjacent[i] = NULL;
     for(i = 0; i < NUM_N_CELLS; i++)
       new->cells[i] = 0;
@@ -729,13 +725,13 @@ G_nodes *new_Gnode(int flag)
   return new;
 
 }
-  
-G_nodes *make_new_node(double x, double y, int cell_dir, Gcell *cell, int
+
+G_nodes *make_new_node(SYS* indsys,double x, double y, int cell_dir, Gcell *cell, int
     index)
 {
   G_nodes *node;
 
-  node = new_Gnode(CLEAR);
+  node = new_Gnode(indsys,CLEAR);
   node->cells[cell_dir] = cell;  /* i am the cell in the opposite direction */
   node->x = x;
   node->y = y;
@@ -748,22 +744,11 @@ G_nodes *make_new_node(double x, double y, int cell_dir, Gcell *cell, int
   return node;
 }
 
-void *gp_malloc(int size)
-{
-  void *ptr;
 
-  ptr = (void *)calloc(1, size);
-
-  if (ptr == NULL)
-    GP_PANIC("Couldn't get space!");
-    
-  return ptr;
-}
-
-/* this is the function that does the work in combining the information for 
+/* this is the function that does the work in combining the information for
    the nodes.  It takes two edges and combines them to one.
 
-   The edges are represented by n-ary (or more) trees where an edge with 
+   The edges are represented by n-ary (or more) trees where an edge with
    n children is divided into n equal sections and the n children are those
    edges.
 
@@ -773,7 +758,7 @@ void *gp_malloc(int size)
    2. one is a leaf and the other has multiple children.
 */
 
-void Combine_edges(Gcell *cell1, char dir1, Gcell *cell2, char dir2)
+void Combine_edges(SYS* indsys,Gcell *cell1, char dir1, Gcell *cell2, char dir2)
 {
   G_edges *edge1, *edge2;
   int i;
@@ -786,25 +771,25 @@ void Combine_edges(Gcell *cell1, char dir1, Gcell *cell2, char dir2)
 
   if (c_is_leaf(cell1) || c_is_leaf(cell2))
     /* one is a leaf so time to propogate info to the other */
-    combine_node_info(cell1, dir1, cell2, dir2);
+    combine_node_info(indsys,cell1, dir1, cell2, dir2);
   else {
     edge1 = cell1->bndry.edges[dir1];
     edge2 = cell2->bndry.edges[dir2];
     if (edge1->num_children != edge2->num_children) {
-      fprintf(stderr, "Bad discretization: number of children doesn't match %d != %d\n", 
+      fprintf(stderr, "Bad discretization: number of children doesn't match %d != %d\n",
 	      edge1->num_children, edge2->num_children);
       exit(1);
     }
     else {
       /* recursively call for children */
       for(i = 0; i < edge1->num_children; i++)
-	Combine_edges(edge1->children[i], dir1, edge2->children[i], dir2);
+	Combine_edges(indsys,edge1->children[i], dir1, edge2->children[i], dir2);
     }
   }
 
 }
 
-void combine_node_info(Gcell *cell1, char dir1, Gcell *cell2, char dir2)
+void combine_node_info(SYS* indsys,Gcell *cell1, char dir1, Gcell *cell2, char dir2)
 {
   char isleaf1, isleaf2;
   Gcell *leafcell, *nonleafcell;
@@ -828,13 +813,13 @@ void combine_node_info(Gcell *cell1, char dir1, Gcell *cell2, char dir2)
   }
 
   /* put leaf cell node info into all nonleaf children nodes */
-  /* and give back pointer to nodes on the end of edge which 
+  /* and give back pointer to nodes on the end of edge which
      will be filled by info in leaf cell nodes */
-  give_cell_adjaceny(leafcell, leafdir, nonleafcell, nonleafdir, 
+  give_cell_adjaceny(leafcell, leafdir, nonleafcell, nonleafdir,
 		     &fareast_north, &farwest_south);
 
   /* combine leafcell's two nodes with the far ones */
-  combine_nodes(leafcell, leafdir, fareast_north, farwest_south);
+  combine_nodes(indsys,leafcell, leafdir, fareast_north, farwest_south);
 
 }
 
@@ -847,9 +832,9 @@ void give_cell_adjaceny(Gcell *leaf, char leafdir, Gcell *nonleaf,
   int num_kids;
   G_nodes *fareast_north, *farwest_south;
   G_edges *edge;
-  
+
   if (c_is_leaf(nonleaf)) {
-    if (nonleafdir == NORTH) {   
+    if (nonleafdir == NORTH) {
       nonleaf->bndry.nodes[NE]->cells[NW] = leaf;
       nonleaf->bndry.nodes[NW]->cells[NE] = leaf;
       *pfareast_north = nonleaf->bndry.nodes[NE];  /* far east */
@@ -875,11 +860,11 @@ void give_cell_adjaceny(Gcell *leaf, char leafdir, Gcell *nonleaf,
     }
   }
   else {
-    /* call recursively for the children.  Assumed in north/east 
+    /* call recursively for the children.  Assumed in north/east
        to south/west order */
     edge = nonleaf->bndry.edges[nonleafdir];
     for(i = 0; i < edge->num_children; i++) {
-      give_cell_adjaceny(leaf, leafdir, edge->children[i], nonleafdir, 
+      give_cell_adjaceny(leaf, leafdir, edge->children[i], nonleafdir,
 			 &fareast_north, &farwest_south);
       if (i == 0)
 	*pfareast_north = fareast_north;
@@ -890,34 +875,40 @@ void give_cell_adjaceny(Gcell *leaf, char leafdir, Gcell *nonleaf,
   }
 }
 
-/* combine the nodes on leafcell's leafdir with the given nodes */	
-void combine_nodes(Gcell *leafcell, char leafdir, G_nodes *fareast_north,
+/* combine the nodes on leafcell's leafdir with the given nodes */
+void combine_nodes(SYS* indsys,Gcell *leafcell, char leafdir, G_nodes *fareast_north,
     G_nodes *farwest_south)
 {
+  switch (leafdir)
+  {
+  case NORTH:
+    replace_node(indsys,leafcell->bndry.nodes[NW], farwest_south);
+    replace_node(indsys,leafcell->bndry.nodes[NE], fareast_north);
+    break;
 
-  if (leafdir == NORTH) {
-    replace_node(leafcell->bndry.nodes[NW], farwest_south);
-    replace_node(leafcell->bndry.nodes[NE], fareast_north);
-  }
-  else if (leafdir == SOUTH) {
-    replace_node(leafcell->bndry.nodes[SW], farwest_south);
-    replace_node(leafcell->bndry.nodes[SE], fareast_north);
-  }
-  else if (leafdir == EAST) {
-    replace_node(leafcell->bndry.nodes[SE], farwest_south);
-    replace_node(leafcell->bndry.nodes[NE], fareast_north);
-  }
-  else if (leafdir == WEST) {
-    replace_node(leafcell->bndry.nodes[SW], farwest_south);
-    replace_node(leafcell->bndry.nodes[NW], fareast_north);
-  }
-  else
+  case SOUTH:
+    replace_node(indsys,leafcell->bndry.nodes[SW], farwest_south);
+    replace_node(indsys,leafcell->bndry.nodes[SE], fareast_north);
+    break;
+
+  case EAST:
+    replace_node(indsys,leafcell->bndry.nodes[SE], farwest_south);
+    replace_node(indsys,leafcell->bndry.nodes[NE], fareast_north);
+    break;
+
+  case WEST:
+    replace_node(indsys,leafcell->bndry.nodes[SW], farwest_south);
+    replace_node(indsys,leafcell->bndry.nodes[NW], fareast_north);
+    break;
+
+  default:
     GP_PANIC("combine_nodes: Unknown direction");
+  }
 }
 
 /* replace the cell's node in the node_dir direction with new node
    */
-void replace_node(G_nodes *old_node, G_nodes *new_node)
+void replace_node(SYS* indsys, G_nodes *old_node, G_nodes *new_node)
 {
   int i;
 
@@ -945,12 +936,12 @@ void replace_node(G_nodes *old_node, G_nodes *new_node)
   if (old_node->x != new_node->x || old_node->y != new_node->y)
     printf("replace_nodes: nodes don't have the same coords!\n");
 #endif
-      
+
   /* mark the old node as dead */
-  kill_node(old_node);
+  kill_node(indsys, old_node);
 }
 
-void kill_node(G_nodes *node)
+void kill_node(SYS* indsys,G_nodes *node)
 {
 #if GP_DEBUG == TRUE
   printf("killing node:");
@@ -958,11 +949,11 @@ void kill_node(G_nodes *node)
 #endif
 
   node->flag = DEAD;
-  remove_and_free(node);
+  remove_and_free(indsys, node);
 }
 
 /* delete first node in nodelist if it is marked as dead. NOT USED */
-void delete_first_node(Nonuni_gp *gp)
+void delete_first_node(SYS* indsys, Nonuni_gp *gp)
 {
   G_nodes *node;
 
@@ -970,12 +961,12 @@ void delete_first_node(Nonuni_gp *gp)
     node = gp->nodelist;
     gp->nodelist = node->next;
     node->next->prev = NULL;
-    free_g_node(node);
+    free_g_node(indsys, node);
   }
 }
-  
+
 /* remove nodes from linked list marked "DEAD".  */
-void delete_dead_nodes(Nonuni_gp *gp)
+void delete_dead_nodes(SYS* indsys, Nonuni_gp *gp)
 {
   G_nodes *node, *free_me;
 
@@ -990,32 +981,32 @@ void delete_dead_nodes(Nonuni_gp *gp)
 
       if (node->next != NULL)
 	node->next->prev = node->prev;
-      
+
       node = node->next;
-      free_g_node(free_me);
+      free_g_node(indsys, free_me);
     }
     else
       node = node->next;
   }
 }
 
-void remove_and_free(G_nodes *node)
+void remove_and_free(SYS* indsys,G_nodes *node)
 {
 
   if (node->prev != NULL)
     node->prev->next = node->next;
   else
     return;  /*This is the head node.  Must take care of it later */
-  
+
   if (node->next != NULL)
     node->next->prev = node->prev;
-  
-  free_g_node(node);
+
+  free_g_node(indsys, node);
 }
 
-void free_g_node(G_nodes *node)
+void free_g_node(SYS* indsys,G_nodes *node)
 {
-  free(node);
+  sysFree(indsys, node);
 }
 
 void determine_adjaceny(G_nodes *nodelist)
@@ -1025,7 +1016,7 @@ void determine_adjaceny(G_nodes *nodelist)
 
   for(node = nodelist; node != NULL; node = node->next) {
     /* do north */
-    if (node->cells[NE] != node->cells[NW]) 
+    if (node->cells[NE] != node->cells[NW])
       node->adjacent[N] = get_adjacent_node(node, node->cells[NE], SW, WEST,
 					    node->cells[NW], SE, EAST);
 
@@ -1045,7 +1036,7 @@ void determine_adjaceny(G_nodes *nodelist)
   }
 }
 
-/* given two cells (cell1, cell2), which share a common node, find 
+/* given two cells (cell1, cell2), which share a common node, find
    the other nodes along their common edge and determine which is closer
    to the common node */
 G_nodes *get_adjacent_node(G_nodes *node, Gcell *cell1, char node_dir1,
@@ -1061,13 +1052,13 @@ G_nodes *get_adjacent_node(G_nodes *node, Gcell *cell1, char node_dir1,
 
   if (cell2 != NULL)
     node2 = get_other_gnode(cell2, edge_dir2, node_dir2);
-  
+
   if (node1 == NULL && node2 != NULL)
     return node2;
   else if (node2 == NULL && node1 != NULL)
     return node1;
-  
-  /* the direction the node is from the cell (node_dir) happens to be the 
+
+  /* the direction the node is from the cell (node_dir) happens to be the
      same direction we want to look for the other cell */
   if (cell2 == node1->cells[node_dir1])
     return node1;
@@ -1084,7 +1075,7 @@ G_nodes *get_other_gnode(Gcell *cell, char edge_dir, char node_dir)
 
   if (cell == NULL)
     GP_PANIC("get_other_gnode given a null cell!");
-    
+
   if (!c_is_leaf(cell))
     GP_PANIC("get_other_gnode requested other node of a nonleaf node!");
 
@@ -1118,14 +1109,17 @@ G_nodes *get_other_gnode(Gcell *cell, char edge_dir, char node_dir)
   return ((G_nodes*)NULL);
 }
 
-void compute_z_fils(Nonuni_gp *gp)
+void compute_z_fils(SYS *indsys, Nonuni_gp *gp)
 {
   double *z_c, *thick, *z_pts, thickness;
   int num_z_pts;
   int i;
 
-  thick = gp->thick = (double *)gp_malloc(gp->num_z_pts * sizeof(double));
-  z_c = gp->z_c = (double *)gp_malloc(gp->num_z_pts * sizeof(double));
+  sysALLOC(gp->thick,gp->num_z_pts,double,ON,IND,indsys,sysAllocTypeGeneric);
+  thick=gp->thick;
+
+  sysALLOC(gp->z_c,gp->num_z_pts,double,ON,IND,indsys,sysAllocTypeGeneric);
+  z_c = gp->z_c;
   z_pts = gp->z_pts;
   thickness = gp->grndp->thick;
   num_z_pts = gp->num_z_pts;
@@ -1135,7 +1129,7 @@ void compute_z_fils(Nonuni_gp *gp)
     z_c[0] = 0.5*thickness;
     return;
   }
-  
+
   if (z_pts[0] != 0.0 || z_pts[num_z_pts - 1] != 1.0)
     GP_PANIC("first and last z_pts should be 0 and 1");
 
@@ -1159,7 +1153,7 @@ void compute_z_fils(Nonuni_gp *gp)
     thick[i] *= thickness;
   }
 }
-  
+
 
 /* this generates the segments for FastH */
 void generate_segs(Nonuni_gp *gp, SYS *indsys)
@@ -1169,15 +1163,15 @@ void generate_segs(Nonuni_gp *gp, SYS *indsys)
   static int complain = 0;
   static int complain2 = 0;
   double x_shift, x_width, y_shift, y_width;
-  
-  gp->num_seg_groups = 0; 
+
+  gp->num_seg_groups = 0;
 
   /* create segments in the north and east directions, and down(z),if needed */
   for(node = gp->nodelist; node != NULL; node = node->next) {
     /* do north */
     if (node->adjacent[N] != NULL) {
       /* width of segment and shift of center point. X_DIR is width dir */
-      get_width_and_shift(X_DIR, node, node->cells[NW], node->cells[NE], 
+      get_width_and_shift(X_DIR, node, node->cells[NW], node->cells[NE],
 			   &x_width, &x_shift);
       /* if this segment isn't a hole on both sides */
       if (x_width != 0) {
@@ -1222,7 +1216,7 @@ void get_width_and_shift(char width_dir, G_nodes *node, Gcell *leftcell,
 			      extremal values of the enclosing box*/
   double center;
   double node_x;
-    
+
   if (width_dir == X_DIR) {
     get_x_cell_vals(leftcell, node, rightcell, &x_min, &x_max);
     node_x = node->x;
@@ -1242,8 +1236,8 @@ void get_width_and_shift(char width_dir, G_nodes *node, Gcell *leftcell,
   center = node_x / 2.0 + (x_max + x_min) / 4.0;
 
   /* shift from node */
-  *ret_shift = center - node_x; 
-}  
+  *ret_shift = center - node_x;
+}
 
 void get_x_cell_vals(Gcell *left, G_nodes *node, Gcell *right, double *x_left,
     double *x_right)
@@ -1252,19 +1246,19 @@ void get_x_cell_vals(Gcell *left, G_nodes *node, Gcell *right, double *x_left,
     *x_left = c_get_x0(left);
   else
     *x_left = node->x;
-  
+
   if (right != NULL && !c_is_hole(right))
     *x_right = c_get_x1(right);
-  else 
+  else
     *x_right = node->x;
-  
+
 #if GP_DEBUG == TRUE
   /* do some data checking */
   if (left != NULL && right != NULL)
     if (c_get_x1(left) != node->x || c_get_x0(right) != node->x)
       GP_PANIC("Node doesn't seem to be at the right cell point!");
 #endif
-  
+
 }
 
 /* left and right of direction */
@@ -1275,19 +1269,19 @@ void get_y_cell_vals(Gcell *left, G_nodes *node, Gcell *right, double *y_min,
     *y_min = c_get_y0(left);
   else
     *y_min = node->y;
-  
+
   if (right != NULL && !c_is_hole(right))
     *y_max = c_get_y1(right);
-  else 
+  else
     *y_max = node->y;
-  
+
 #if GP_DEBUG == TRUE
   /* do some data checking */
   if (left != NULL && right != NULL)
     if (c_get_y1(left) != node->y || c_get_y0(right) != node->y)
       GP_PANIC("Node doesn't seem to be at the right cell point!");
 #endif
-  
+
 }
 
 void make_segs(char direction, G_nodes *node, G_nodes *othernode, double width,
@@ -1308,7 +1302,7 @@ void make_segs(char direction, G_nodes *node, G_nodes *othernode, double width,
     wx = 1;
     wy = 0;
     wz = 0;
-    node->n_segs = (SEGMENT **)gp_malloc(num_z_pts*sizeof(SEGMENT *));
+    sysALLOC(node->n_segs,gp->num_z_pts,SEGMENT*,ON,IND,indsys,sysAllocTypePtrArray);
     segs = node->n_segs;
   }
   else if (direction == E) {
@@ -1317,7 +1311,7 @@ void make_segs(char direction, G_nodes *node, G_nodes *othernode, double width,
     wx = 0;
     wy = 1;
     wz = 0;
-    node->e_segs = (SEGMENT **)gp_malloc(num_z_pts*sizeof(SEGMENT *));
+    sysALLOC(node->e_segs,gp->num_z_pts,SEGMENT*,ON,IND,indsys,sysAllocTypePtrArray);
     segs = node->e_segs;
   }
   else
@@ -1326,14 +1320,14 @@ void make_segs(char direction, G_nodes *node, G_nodes *othernode, double width,
   for(i = 0; i < num_z_pts; i++) {
     /*
     draw_one_seg(direction,
-		 node->x + x_shift, node->y + y_shift, z_c[i], 
-		 othernode->x + x_shift, othernode->y + y_shift, z_c[i], 
+		 node->x + x_shift, node->y + y_shift, z_c[i],
+		 othernode->x + x_shift, othernode->y + y_shift, z_c[i],
 		 width, thick[i], hx, hy, hz, wx, wy, wz,
 		 gp->n_hinc, gp);
     */
-    segs[i] = 
-      make_one_seg(node->x + x_shift, node->y + y_shift, z_c[i], 
-		 othernode->x + x_shift, othernode->y + y_shift, z_c[i], 
+    segs[i] =
+      make_one_seg(node->x + x_shift, node->y + y_shift, z_c[i],
+		 othernode->x + x_shift, othernode->y + y_shift, z_c[i],
 		 width, thick[i], wx, wy, wz, gp, indsys, &node0, &node1);
     node0->gp_node = node;
     node1->gp_node = othernode;
@@ -1351,15 +1345,15 @@ SEGMENT *make_one_seg(double x0, double y0, double z0, double x1, double y1,
   char name[100];
   double xg,yg,zg;
   double wxg, wyg, wzg;
-  
+
   get_global_coords(x0,y0,z0,gp, &xg, &yg, &zg);
   sprintf(name, "%s_%d", gp->grndp->name, indsys->num_nodes);
-  node0 = makenode(name, indsys->num_nodes, xg, yg, zg, GPTYPE, indsys);
+  node0 = makenode(name, indsys->num_nodes, xg, yg, zg, GPTYPE, indsys,1);
   *pnode0 = node0;
 
   get_global_coords(x1,y1,z1,gp, &xg, &yg, &zg);
   sprintf(name, "%s_%d", gp->grndp->name, indsys->num_nodes);
-  node1 = makenode(name, indsys->num_nodes, xg, yg, zg, GPTYPE, indsys);
+  node1 = makenode(name, indsys->num_nodes, xg, yg, zg, GPTYPE, indsys,1);
   *pnode1 = node1;
 
   node0->gp = gp->grndp;
@@ -1367,19 +1361,21 @@ SEGMENT *make_one_seg(double x0, double y0, double z0, double x1, double y1,
 
   get_global_vec(wx, wy, wz, gp, &wxg, &wyg, &wzg);
 
-  widthdir = (double *)gp_malloc(3*sizeof(double));
+  widthdir=NULL;
+  sysALLOC(widthdir,3,double,ON,IND,indsys,sysAllocTypeGeneric);
+
   widthdir[0] = wxg;
   widthdir[1] = wyg;
   widthdir[2] = wzg;
 
   sprintf(name, "%s_%d_%d", gp->grndp->name, node0->number , node1->number);
 
-  return makeseg(name, node0, node1, height, width, gp->grndp->sigma, 
+  return makeseg(name, node0, node1, height, width, gp->grndp->sigma,
 #if SUPERCON == ON
 		 gp->grndp->lambda,
 #endif
-		 gp->grndp->hinc, 1, gp->grndp->rh, dontcare, widthdir, 
-		 indsys->num_segs, GPTYPE, indsys); 
+		 gp->grndp->hinc, 1, gp->grndp->rh, dontcare, widthdir,
+		 indsys->num_segs, GPTYPE, indsys,1 );
 
 }
 
@@ -1405,17 +1401,17 @@ void draw_one_seg(char direction, double x1, double y1, double z1,
     x = x1 - 0.5 * wx * width - 0.5 * hx * height;
     y = y1 - 0.5 * wy * width - 0.5 * hy * height;
     z = z1 - 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
 
     x = x1 + 0.5 * wx * width - 0.5 * hx * height;
     y = y1 + 0.5 * wy * width - 0.5 * hy * height;
     z = z1 + 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     x = x1 + 0.5 * wx * width + 0.5 * hx * height;
     y = y1 + 0.5 * wy * width + 0.5 * hy * height;
     z = z1 + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
 
     fprintf(fp,"\n");
 
@@ -1425,22 +1421,22 @@ void draw_one_seg(char direction, double x1, double y1, double z1,
     y = y2 - 0.5 * wy * width + 0.5 * hy * height;
     z = z2 - 0.5 * wz * width + 0.5 * hz * height;
     fprintf(fp,"%lg %lg %lg ",x,y,z);
-  
+
     x = x2 - 0.5 * wx * width - 0.5 * hx * height;
     y = y2 - 0.5 * wy * width - 0.5 * hy * height;
     z = z2 - 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
 
     x = x2 + 0.5 * wx * width - 0.5 * hx * height;
     y = y2 + 0.5 * wy * width - 0.5 * hy * height;
     z = z2 + 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     x = x2 + 0.5 * wx * width + 0.5 * hx * height;
     y = y2 + 0.5 * wy * width + 0.5 * hy * height;
     z = z2 + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     fprintf(fp,"\n");
 
       /* left side */
@@ -1453,13 +1449,13 @@ void draw_one_seg(char direction, double x1, double y1, double z1,
       x = x1 - 0.5 * wx * width - 0.5 * hx * height;
       y = y1 - 0.5 * wy * width - 0.5 * hy * height;
       z = z1 - 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
 
       x = x2 - 0.5 * wx * width - 0.5 * hx * height;
       y = y2 - 0.5 * wy * width - 0.5 * hy * height;
       z = z2 - 0.5 * wz * width - 0.5 * hz * height;
-  
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       x = x2 - 0.5 * wx * width + 0.5 * hx * height;
       y = y2 - 0.5 * wy * width + 0.5 * hy * height;
       z = z2 - 0.5 * wz * width + 0.5 * hz * height;
@@ -1472,40 +1468,40 @@ void draw_one_seg(char direction, double x1, double y1, double z1,
       x = x1 + 0.5 * wx * width - 0.5 * hx * height;
       y = y1 + 0.5 * wy * width - 0.5 * hy * height;
       z = z1 + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
       x = x1 + 0.5 * wx * width + 0.5 * hx * height;
       y = y1 + 0.5 * wy * width + 0.5 * hy * height;
       z = z1 + 0.5 * wz * width + 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
       x = x2 + 0.5 * wx * width + 0.5 * hx * height;
       y = y2 + 0.5 * wy * width + 0.5 * hy * height;
       z = z2 + 0.5 * wz * width + 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
       x = x2 + 0.5 * wx * width - 0.5 * hx * height;
       y = y2 + 0.5 * wy * width - 0.5 * hy * height;
       z = z2 + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       fprintf(fp, "\n");
-  
+
     /* top */
     fprintf(fp, "Q %d ",i);
     x = x1 - 0.5 * wx * width + 0.5 * hx * height;
     y = y1 - 0.5 * wy * width + 0.5 * hy * height;
     z = z1 - 0.5 * wz * width + 0.5 * hz * height;
     fprintf(fp,"%lg %lg %lg ",x,y,z);
-   
+
     x = x1 + 0.5 * wx * width + 0.5 * hx * height;
     y = y1 + 0.5 * wy * width + 0.5 * hy * height;
     z = z1 + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     x = x2 + 0.5 * wx * width + 0.5 * hx * height;
     y = y2 + 0.5 * wy * width + 0.5 * hy * height;
     z = z2 + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
     x = x2 - 0.5 * wx * width + 0.5 * hx * height;
     y = y2 - 0.5 * wy * width + 0.5 * hy * height;
     z = z2 - 0.5 * wz * width + 0.5 * hz * height;
@@ -1519,23 +1515,23 @@ void draw_one_seg(char direction, double x1, double y1, double z1,
       x = x1 - 0.5 * wx * width - 0.5 * hx * height;
       y = y1 - 0.5 * wy * width - 0.5 * hy * height;
       z = z1 - 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
 
       x = x1 + 0.5 * wx * width - 0.5 * hx * height;
       y = y1 + 0.5 * wy * width - 0.5 * hy * height;
       z = z1 + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       x = x2 + 0.5 * wx * width - 0.5 * hx * height;
       y = y2 + 0.5 * wy * width - 0.5 * hy * height;
       z = z2 + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       x = x2 - 0.5 * wx * width - 0.5 * hx * height;
       y = y2 - 0.5 * wy * width - 0.5 * hy * height;
       z = z2 - 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     fprintf(fp,"\n");
-}     
+}
 
 void print_cell_and_kids(Gcell *cell)
 {
@@ -1545,7 +1541,7 @@ void print_cell_and_kids(Gcell *cell)
 void fprint_cell_and_kids(Gcell *cell, FILE *fp)
 {
   dump_cell(cell, fp);
-  
+
   switch(c_get_children_type(cell)) {
   case NONE:
     break;
@@ -1572,7 +1568,7 @@ void dump_cell(Gcell *cell, FILE *fp)
   int i;
 
   fprintf(fp, "\nSelf: %d\t parent %d\t (x0 y0)(x1 y1) (%lg,%lg)(%lg,%lg)\n",
-	  cell->index, cell->parent->index, 
+	  cell->index, cell->parent->index,
 	  cell->x0,cell->y0,cell->x1,cell->y1);
 
   fprintf(fp, "  area %lg \tChildren type: %d\tChildren: ",
@@ -1592,14 +1588,14 @@ void dump_cell(Gcell *cell, FILE *fp)
     GP_PANIC("Unknown child type in dump_cell");
     break;
   }
-  
+
   if (c_is_leaf(cell)) {
     fprintf(fp, "   Nodes ne,se,sw,nw: ");
     for (i = 0; i < NUMNODES; i++)
       DUMP_INDEX(cell->bndry.nodes[i]);
     fprintf(fp, "\n");
   }
-  
+
   fflush(fp);
 }
 
@@ -1625,7 +1621,7 @@ void dump_node(G_nodes *node,FILE *fp)
 {
   int i;
 
-  fprintf(fp, "\nself: %d \tx,y (%lg,%lg)\t flag %d\tnesw adj: ", 
+  fprintf(fp, "\nself: %d \tx,y (%lg,%lg)\t flag %d\tnesw adj: ",
 	  node->index,node->x, node->y,node->flag);
   for (i = 0; i < NUMADJ; i++)
     DUMP_INDEX(node->adjacent[i]);
@@ -1639,7 +1635,7 @@ void dump_node(G_nodes *node,FILE *fp)
   fprintf(fp, "\tnext ");
   DUMP_INDEX(node->next);
   fprintf(fp, "\n");
-  
+
   /*fprintf(fp,"\tprev %d\tnext %d\n",node->prev->index, node->next->index);*/
 }
 
@@ -1660,7 +1656,7 @@ void dump_leaf_cells_to_file(Gcell *cell, char *fname)
     fprintf(stderr, "dump_leaf_cells_to_file: couldn't open file\n");
     return;
   }
-    
+
   fprintf(fp,"0 A nonuniform plane hierarchy: %s\n",fname);
   dump_leaf_cells(cell, fp);
   fclose(fp);
@@ -1711,7 +1707,7 @@ void dump_nonuni_plane_currents(Nonuni_gp *gp, CX *Ib, FILE *fp)
     get_global_coords(gnode->x, gnode->y, gp->z0, gp, &x, &y, &z);
     if (gnode->e_segs != NULL && gnode->n_segs != NULL)
       fprintf(fp, "%lg %lg %lg   %lg +j %lg    %lg +j %lg\n",
-	      x, y, z, 
+	      x, y, z,
 	      Ib[gnode->e_segs[0]->filaments[0].filnumber].real,
 	      Ib[gnode->e_segs[0]->filaments[0].filnumber].imag,
 	      Ib[gnode->n_segs[0]->filaments[0].filnumber].real,
@@ -1719,13 +1715,13 @@ void dump_nonuni_plane_currents(Nonuni_gp *gp, CX *Ib, FILE *fp)
 	      );
     else if (gnode->e_segs != NULL)
       fprintf(fp, "%lg %lg %lg   %lg +j %lg    %lg +j %lg\n",
-	      x, y, z, 
+	      x, y, z,
 	      Ib[gnode->e_segs[0]->filaments[0].filnumber].real,
 	      Ib[gnode->e_segs[0]->filaments[0].filnumber].imag,
 	      0.0, 0.0);
     else if (gnode->n_segs != NULL)
       fprintf(fp, "%lg %lg %lg   %lg +j %lg    %lg +j %lg\n",
-	      x, y, z, 
+	      x, y, z,
 	      0.0,
 	      0.0,
 	      Ib[gnode->n_segs[0]->filaments[0].filnumber].real,
@@ -1735,8 +1731,8 @@ void dump_nonuni_plane_currents(Nonuni_gp *gp, CX *Ib, FILE *fp)
 }
 
 /* return effective perimeter of a node in the plane */
-/* This is essentially the area that can be used to calculate 
-   the current density from an injection point and should match 
+/* This is essentially the area that can be used to calculate
+   the current density from an injection point and should match
    the real perimeter of the contact for accurate resistance calculation */
 double get_perimeter(G_nodes *node)
 {

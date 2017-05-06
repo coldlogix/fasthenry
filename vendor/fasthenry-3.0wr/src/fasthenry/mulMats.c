@@ -2,10 +2,10 @@
    # ***** */
 #include "mulGlobal.h"
 
-int *localcnt, *multicnt, *evalcnt;	/* counts of builds done by level */
+int *localcnt=0, *multicnt=0, *evalcnt=0;	/* counts of builds done by level */
 
-int **Q2Mcnt, **Q2Lcnt, **Q2Pcnt, **L2Lcnt; /* counts of xformation mats */
-int **M2Mcnt, **M2Lcnt, **M2Pcnt, **L2Pcnt, **Q2PDcnt;
+int **Q2Mcnt =0, **Q2Lcnt=0, **Q2Pcnt=0, **L2Lcnt=0; /* counts of xformation mats */
+int **M2Mcnt =0, **M2Lcnt=0, **M2Pcnt=0, **L2Pcnt=0, **Q2PDcnt=0;
 
 /* SRW */
 void mulMatDirect(ssystem*);
@@ -44,22 +44,27 @@ void mulMatDirect(ssystem *sys)
 
   /* Allocate space for the vects and mats. */
     nextc->directnumvects = nummats;
-    if(nummats > 0) {
-      CALLOC(nextc->directq, nummats, double*, ON, AMSC);
-      CALLOC(temp, nummats, int*, ON, AMSC);
-      CALLOC(nextc->directnumeles, nummats, int, ON, AMSC);
-      CALLOC(nextc->directmats, nummats, double**, ON, AMSC);
-/*      CALLOC(nextc->precondmats, nummats, double**, ON, AMSC); */
-    }
+    if(nummats > 0)
+    {
+      int* tint;
+      mulALLOC(nextc->directq, nummats, double*, ON, AMSC, sys, AllocTypePtrArray);
+      tint=nextc->nbr_is_dummy[0];
+      mulALLOC(nextc->nbr_is_dummy, nummats, int*, ON, AMSC, sys, AllocTypePtrArray);
+      nextc->nbr_is_dummy[0] = tint;
+      mulALLOC(nextc->directnumeles, nummats, int, ON, AMSC, sys, AllocTypeGeneric);
+      mulALLOC(nextc->directmats, nummats, double**, ON, AMSC, sys, AllocTypePtrArray);
+/*      mulALLOC(nextc->precondmats, nummats, double**, ON, AMSC, sys, AllocTypePtrArray); */
 
-    /* initialize the pointer from this cube to its part of dummy vector
-       - save the self part found in indexkid() */
-    temp[0] = nextc->nbr_is_dummy[0];
-    nextc->nbr_is_dummy = temp;
+      /* initialize the pointer from this cube to its part of dummy vector
+           - save the self part found in indexkid() */
+
+
+    }
   }
 
 /* Now place in the matrices. */
-  for(nextc=sys->directlist; nextc != NULL; nextc = nextc->dnext) {
+  for(nextc=sys->directlist; nextc != NULL; nextc = nextc->dnext)
+  {
     nextc->directq[0] = nextc->upvects[0];
     nextc->directnumeles[0] = nextc->upnumeles[0];
 
@@ -67,28 +72,28 @@ void mulMatDirect(ssystem *sys)
 #if DIRSOL == ON || EXPGCR == ON
     if(nextc == sys->directlist) {
       if(eval_size < MAXSIZ) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"mulMatDirect: non-block direct methods not supported\n");
 	exit(1);
 	/* if this is going to work, need a special, condensing Q2P
 	   as well as some way to use it in the framework of the GCR loop */
-	nextc->directmats[0] = Q2P(nextc->chgs, eval_size,
-				   nextc->nbr_is_dummy[0], nextc->chgs, 
+	nextc->directmats[0] = Q2P(sys, nextc->chgs, eval_size,
+				   nextc->nbr_is_dummy[0], nextc->chgs,
 				   eval_size, TRUE);
       }
       else blkQ2Pfull(sys->directlist, up_size, eval_size,
 		      &trimat, &sqrmat, &real_index, sys->is_dummy);
     }
-    else nextc->directmats[0] 
-	= Q2PDiag(nextc->chgs, nextc->upnumeles[0], nextc->nbr_is_dummy[0],
-		  TRUE);
+    else
+    {
+     unsigned int i;
+     nextc->directmats[0] = Q2PDiag(sys, nextc->chgs, nextc->upnumeles[0], nextc->nbr_is_dummy[0],TRUE);
+    }
 #else
-    nextc->directmats[0] 
-	= Q2PDiag(nextc->chgs, nextc->upnumeles[0], nextc->nbr_is_dummy[0],
-		  TRUE);
+    nextc->directmats[0]= Q2PDiag(sys, nextc->chgs, nextc->upnumeles[0], nextc->nbr_is_dummy[0],TRUE);
 /*
-    nextc->precondmats[0] 
-	= Q2PDiag(nextc->chgs, nextc->upnumeles[0], nextc->nbr_is_dummy[0],
+    nextc->precondmats[0]
+	= Q2PDiag(sys, nextc->chgs, nextc->upnumeles[0], nextc->nbr_is_dummy[0],
 		  FALSE);
 */
     /*dumpMatCor(nextc->directmats[0], (double *)NULL, nextc->upnumeles[0]);*/
@@ -117,23 +122,24 @@ void mulMatDirect(ssystem *sys)
       lutime += dtime;
     }
 #endif
-    
+
     /* starttimer; */
-    for(nummats=1, i=0; i < nextc->numnbrs; i++) {
+    for(nummats=1, i=0; i < nextc->numnbrs; i++)
+    {
       nextnbr = nextc->nbrs[i];
       ASSERT(nextnbr->upnumvects > 0);
       nextc->directq[nummats] = nextnbr->upvects[0];
       nextc->nbr_is_dummy[nummats] = nextnbr->nbr_is_dummy[0];
       nextc->directnumeles[nummats] = nextnbr->upnumeles[0];
-      nextc->directmats[nummats] = Q2P(nextnbr->chgs, 
-				       nextnbr->upnumeles[0], 
+      nextc->directmats[nummats] = Q2P(sys, nextnbr->chgs,
+				       nextnbr->upnumeles[0],
 				       nextnbr->nbr_is_dummy[0],
 				       nextc->chgs, nextc->upnumeles[0],
 				       TRUE);
       nummats++;
 /*
-      nextc->precondmats[nummats++] = Q2P(nextnbr->chgs, 
-					  nextnbr->upnumeles[0], 
+      nextc->precondmats[nummats++] = Q2P(sys, nextnbr->chgs,
+					  nextnbr->upnumeles[0],
 					  nextnbr->nbr_is_dummy[0],
 					  nextc->chgs, nextc->upnumeles[0],
 					  FALSE);
@@ -176,26 +182,34 @@ void bdmulMatPrecond(ssystem *sys)
     }
 
     /* allocate and zero a preconditioner matrix. */
-    MALLOC(mat, size, double*, ON, AMSC);
-    for(i = 0; i < size; i++) {
-      MALLOC(mat[i], size, double, ON, AMSC);
+    mat=0;
+    mulALLOC(mat, size, double*, ON, AMSC, sys, AllocTypePtrArray);
+
+    for(i = 0; i < size; i++)
+    {
+      mulALLOC(mat[i], size, double, ON, AMSC, sys, AllocTypeGeneric);
     }
-    for(i = 0; i < size; i++) {
-      for(j = 0; j < size; j++) {
-	mat[i][j] = 0.0;
+    for(i = 0; i < size; i++)
+    {
+      for(j = 0; j < size; j++)
+      {
+	    mat[i][j] = 0.0;
       }
     }
 
     /* Chase through the kids to place in potential coeffs. */
-    for(first = TRUE, row=0, kidi=0; kidi < nc->numkids; kidi++) {
+    for(first = TRUE, row=0, kidi=0; kidi < nc->numkids; kidi++)
+    {
       kid = nc->kids[kidi];
-      if(kid != NULL) {
-	/* Exploit the hierarchical charge numbering to get precond vector. */
-	if(first == TRUE) {
-	  first = FALSE;
-	  nc->prevectq = kid->directq[0];
-	  nc->prevectp = kid->eval;
-	}
+      if(kid != NULL)
+      {
+	    /* Exploit the hierarchical charge numbering to get precond vector. */
+	    if(first == TRUE)
+        {
+	      first = FALSE;
+	      nc->prevectq = kid->directq[0];
+	      nc->prevectp = kid->eval;
+     	}
 	/* Get the diagonal block of P^{-1}. */
 	kidsize = kid->directnumeles[0];
 	for(k = kidsize - 1; k >= 0; k--) {
@@ -208,7 +222,7 @@ void bdmulMatPrecond(ssystem *sys)
 	  kidnbr = nc->kids[i];
 	  if(kidnbr != NULL) {
 	    if(kidnbr != kid) {
-	      /* Chase thru list of nbrs to get matrix associated with this 
+	      /* Chase thru list of nbrs to get matrix associated with this
 		 kidnbr.  Note, this is because the kid list and nbr matrix
 		 list are in different orders, could be fixed. */
 	      for(j = kid->numnbrs-1; j >= 0; j--) {
@@ -230,16 +244,16 @@ void bdmulMatPrecond(ssystem *sys)
 	ASSERT(col == size);
 	row += kidsize;
       }
-    }    
+    }
     ASSERT(row == size);
 
-    nc->precond = ludecomp(mat, size, FALSE);
+    nc->precond = ludecomp(sys, mat, size, FALSE);
     nc->presize = size;
   }
 }
-      
 
-/* This near picks up only the hamming distance one cubes. */    
+
+/* This near picks up only the hamming distance one cubes. */
 #define HNEAR(nbr, nj, nk, nl) \
 ((ABS((nbr)->j - (nj)) + ABS((nbr)->k - (nk)) + ABS((nbr)->l - (nl))) <= 1)
 
@@ -254,7 +268,7 @@ void bdmulMatPrecond(ssystem *sys)
 (((nbr)->j == (nj)) && \
  ((nbr)->k == (nk)) && \
  ((nbr)->l == (nl)) )
-	
+
 void olmulMatPrecond(ssystem *sys)
 {
   cube *nc, *nnbr, *nnnbr;
@@ -289,14 +303,20 @@ void olmulMatPrecond(ssystem *sys)
 #if JACDBG == ON
   printf("max direct size =%d\n", maxsize);
 #endif
-  MALLOC(reorder, maxsize,int, ON, AMSC);
-  MALLOC(mat, maxsize, double*, ON, AMSC);
-  for(i=0; i < maxsize; i++) {
-    MALLOC(mat[i], maxsize, double, ON, AMSC);
+  reorder=0;
+  mulALLOC(reorder, maxsize,int, ON, AMSC, sys, AllocTypeGeneric);
+
+  mat=0;
+  mulALLOC(mat, maxsize, double*, ON, AMSC, sys, AllocTypePtrArray);
+
+  for(i=0; i < maxsize; i++)
+  {
+    mulALLOC(mat[i], maxsize, double, ON, AMSC, sys, AllocTypeGeneric);
   }
 
 /* Now go fill-in a matrix. */
-  for(maxsize=0, nc=sys->directlist; nc != NULL; nc = nc->dnext) {
+  for(maxsize=0, nc=sys->directlist; nc != NULL; nc = nc->dnext)
+  {
     nsize = nc->directnumeles[0];
     nc_dummy = nc->nbr_is_dummy[0];
     nc_pc = nc->chgs;
@@ -320,7 +340,7 @@ void olmulMatPrecond(ssystem *sys)
 #endif
 	find_flux_density_row(mat, nc->directmats[0], i, nsize, nsize, 0, 0,
 			      nc_pc, nc_pc, nc_dummy, nc_dummy);
-      }	
+      }
     }
     offset = nsize;
     for(k=0; k < nc->numnbrs; k++) { /* loop on neighbors of nc */
@@ -396,8 +416,10 @@ void olmulMatPrecond(ssystem *sys)
 
     /* set up the local is_dummy vector for the rows/cols of mat */
     /* THIS COULD BE AVOIDED BY USING CUBE is_dummy's INSIDE invert() */
-    if(big_mat_size < offset) {	/* allocate only if larger array needed */
-      CALLOC(is_dummy, offset, int, ON, AMSC);
+    if(big_mat_size < offset)
+    {	/* allocate only if larger array needed */
+      is_dummy=0;
+      mulALLOC(is_dummy, offset, int, ON, AMSC, sys, AllocTypeGeneric);
     }
     /* dump sections of the dummy vector in order cubes appear in nbr lst */
     /* (use fragment of Jacob's loop above) */
@@ -462,7 +484,7 @@ void olmulMatPrecond(ssystem *sys)
 /*
   finds a row of flux density coeffs from three potential coeff rows
   - to_mat[eval_row][] is the destination row; from_mat[eval_row][]
-    initially contains the potential coefficients for evals at the 
+    initially contains the potential coefficients for evals at the
     center of eval_panels[eval_row] (unless NUMDPT == 2, is garbage then)
   - the eval panels are scaned until eval_panels[eval_row]'s
     dummies are found and the corresponding two rows are identified
@@ -496,8 +518,8 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
   fprintf(stdout, "Center row, factor = %g\n", factor);
 #endif
   for(j = n_chg - 1; j >= 0; j--) { /* loop on columns */
-    if(!chg_is_dummy[j]) 
-	to_mat[row_offset + eval_row][col_offset + j] 
+    if(!chg_is_dummy[j])
+	to_mat[row_offset + eval_row][col_offset + j]
 	    = from_mat[eval_row][j]*factor;
 #if DPDDIF == ON
     fprintf(stdout, " %.16e", from_mat[eval_row][j]);
@@ -521,7 +543,7 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
 #else
     /* this is the only factor required for two dummy rows in two point case */
     factor = (surf->inner_perm - surf->outer_perm)
-	/(eval_panels[eval_row]->neg_dummy->area 
+	/(eval_panels[eval_row]->neg_dummy->area
 	  + eval_panels[eval_row]->pos_dummy->area);
 #endif
 #if DPDDIF == ON
@@ -536,10 +558,10 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
 #endif
       if(!chg_is_dummy[j])
 #if NUMDPT == 3
-	  to_mat[row_offset + eval_row][col_offset + j] 
+	  to_mat[row_offset + eval_row][col_offset + j]
 	      += from_mat[dindex][j]*factor;
 #else				/* make sure to overwrite possible garbage */
-	  to_mat[row_offset + eval_row][col_offset + j] 
+	  to_mat[row_offset + eval_row][col_offset + j]
 	      = -from_mat[dindex][j]*factor;
 #endif
 #if DPDDIF == ON
@@ -553,7 +575,7 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
 #else
     /* this is the only factor required for two dummy rows in two point case */
     factor = (surf->inner_perm - surf->outer_perm)
-	/(eval_panels[eval_row]->neg_dummy->area 
+	/(eval_panels[eval_row]->neg_dummy->area
 	  + eval_panels[eval_row]->pos_dummy->area);
 #endif
 #if DPDDIF == ON
@@ -570,10 +592,10 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
 #endif
       if(!chg_is_dummy[j]) {
 #if NUMDPT == 3
-	to_mat[row_offset + eval_row][col_offset + j] 
+	to_mat[row_offset + eval_row][col_offset + j]
 	    += calcp(chg_panels[j], dp, NULL)*factor;
 #else
-	to_mat[row_offset + eval_row][col_offset + j] 
+	to_mat[row_offset + eval_row][col_offset + j]
 	    = -calcp(chg_panels[j], dp, NULL)*factor;
 #endif
 #if DPDDIF == ON
@@ -610,7 +632,7 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
       if(chg_panels[j]->index == eval_panels[eval_row]->index) continue;
 #endif
       if(!chg_is_dummy[j])
-	  to_mat[row_offset + eval_row][col_offset + j] 
+	  to_mat[row_offset + eval_row][col_offset + j]
 	      += from_mat[dindex][j]*factor;
 #if DPDDIF == ON
       fprintf(stdout, " %.16e (%d)", from_mat[dindex][j],chg_panels[j]->index);
@@ -629,7 +651,7 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
       if(chg_panels[j]->index == eval_panels[eval_row]->index) continue;
 #endif
       if(!chg_is_dummy[j]) {
-	to_mat[row_offset + eval_row][col_offset + j] 
+	to_mat[row_offset + eval_row][col_offset + j]
 	    += calcp(chg_panels[j], dp, NULL)*factor;
 #if DPDDIF == ON
 	fprintf(stdout, " %.16e (%d)",
@@ -643,7 +665,7 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
     }
   }
 #if NUMDPT == 2
-  /* - do row entry due to panel contribution 
+  /* - do row entry due to panel contribution
      - entry only necessary if eval panel is in chg panel list */
   /*   search for the eval panel in the charge panel list */
   dp = NULL;
@@ -655,7 +677,7 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
       }
     }
   }
-  /*   set entry if eval panel found in chg panel list 
+  /*   set entry if eval panel found in chg panel list
        - this is an overwrite; contributions of other rows should cancel */
   if(dp != NULL) {
     to_mat[row_offset + eval_row][col_offset + j]
@@ -665,11 +687,11 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
 #endif
 
 #if DPDDIF == ON
-  fprintf(stdout, "\nDivided difference row (%d)\n", 
+  fprintf(stdout, "\nDivided difference row (%d)\n",
 	  eval_panels[eval_row]->index);
   for(j = n_chg - 1; j >= 0; j--) {
-    fprintf(stdout, " %.16e (%d)", 
-	    to_mat[row_offset + eval_row][col_offset + j], 
+    fprintf(stdout, " %.16e (%d)",
+	    to_mat[row_offset + eval_row][col_offset + j],
 	    chg_panels[j]->index);
   }
   fprintf(stdout, "\n\n");
@@ -677,14 +699,14 @@ void find_flux_density_row(double **to_mat, double **from_mat, int eval_row,
 }
 
 
-/* 
+/*
 MulMatUp computes the multipole to multipole or charge to
 multipole matrices that map to a parent's multipole coeffs from its
 children's multipoles or charges. Note that only one set of
 multipole to multipole matrices is computed per level by exploiting the
-uniform break-up of three-space (ie many shifts have similar geometries).  
+uniform break-up of three-space (ie many shifts have similar geometries).
 */
-void mulMatUp(ssystem *sys) 
+void mulMatUp(ssystem *sys)
 {
 cube *nextc, *kid;
 int i, j, numterms, depth, order = sys->order;
@@ -702,11 +724,12 @@ double **multimats[8];
   }
 
 /* Handle the lowest level cubes first (set up Q2M's). */
-  for(nextc=sys->multilist[sys->depth]; nextc != NULL; nextc = nextc->mnext) {
+  for(nextc=sys->multilist[sys->depth]; nextc != NULL; nextc = nextc->mnext)
+  {
     nextc->multisize = numterms;
-    CALLOC(nextc->multi, numterms, double, ON, AMSC);
-    CALLOC(nextc->upmats, 1, double**, ON, AMSC);
-    nextc->upmats[0] = mulQ2Multi(nextc->chgs, nextc->nbr_is_dummy[0],
+    mulALLOC(nextc->multi, numterms, double, ON, AMSC, sys, AllocTypeGeneric);
+    mulALLOC(nextc->upmats, 1, double**, ON, AMSC, sys, AllocTypePtrArray);
+    nextc->upmats[0] = mulQ2Multi(sys, nextc->chgs, nextc->nbr_is_dummy[0],
 				  nextc->upnumeles[0],
 				  nextc->x, nextc->y, nextc->z, order);
 
@@ -723,91 +746,111 @@ double **multimats[8];
   if(sys->locallist[sys->depth] == NULL
      && sys->multilist[sys->depth] == NULL) {
     fprintf(stdout, "No expansions at level %d (lowest)\n", sys->depth);
-    /*if(sys->depth < 3) 
+    /*if(sys->depth < 3)
 	fprintf(stdout, " (Warning: no multipole acceleration)\n");*/
   }
   else if(sys->locallist[sys->depth] == NULL) {
     fprintf(stdout, "No local expansions at level %d (lowest)\n", sys->depth);
   }
   else if(sys->multilist[sys->depth] == NULL) {
-    fprintf(stdout, "No multipole expansions at level %d (lowest)\n", 
-	    sys->depth); 
-    /*if(sys->depth < 3) 
+    fprintf(stdout, "No multipole expansions at level %d (lowest)\n",
+	    sys->depth);
+    /*if(sys->depth < 3)
 	fprintf(stdout, " (Warning: no multipole acceleration)\n");*/
   }
 
 /* Allocate the vectors and matrices for the cubes. */
   /* no multipoles over root cube or its kids (would not be used if made) */
-  for(depth = (sys->depth - 1); depth > 1; depth--) {
-  /* set up M2M's and Q2M's to compute the multipoles needed for this level */
-    if(sys->locallist[depth] == NULL && sys->multilist[depth] == NULL) {
+  for(depth = (sys->depth - 1); depth > 1; depth--)
+  {
+    /* set up M2M's and Q2M's to compute the multipoles needed for this level */
+    if(sys->locallist[depth] == NULL && sys->multilist[depth] == NULL)
+    {
       fprintf(stdout, "No expansions at level %d\n", depth);
       /*if(depth < 3) fprintf(stdout, " (Warning: no multipole acceleration)\n");
       else fprintf(stdout, "\n");*/
     }
-    else if(sys->locallist[depth] == NULL) {
-      fprintf(stdout, "No local expansions at level %d\n", depth);
+    else
+    {
+      if(sys->locallist[depth] == NULL)
+      {
+        fprintf(stdout, "No local expansions at level %d\n", depth);
+      }
+      else
+      {
+        if(sys->multilist[depth] == NULL)
+        {
+          fprintf(stdout, "No multipole expansions at level %d\n", depth);
+          /*if(depth < 3) fprintf(stdout, " (Warning: no multipole acceleration)\n");
+          else fprintf(stdout, "\n");*/
+        }
+      }
     }
-    else if(sys->multilist[depth] == NULL) {
-      fprintf(stdout, "No multipole expansions at level %d\n", depth); 
-      /*if(depth < 3) fprintf(stdout, " (Warning: no multipole acceleration)\n");
-      else fprintf(stdout, "\n");*/
-    }
-
 #if ON == ON			/* ON == OFF produces the M2M error!! */
     /* NULL out pointers to same-geometry M2M mats for this level */
-    for(i=0; i < 8; i++) multimats[i] = NULL;
+    for(i=0; i < 8; i++)
+    {
+       multimats[i] = NULL;
+    }
 #endif
 
   /* Hit nonempty cubes at this level assigning ptrs to precomputed   */
   /* M2M mats (for this lev), or if a kid is exact, computing Q2M matrices. */
-    for(nextc=sys->multilist[depth]; nextc != NULL; nextc = nextc->mnext) {
-      
+    for(nextc=sys->multilist[depth]; nextc != NULL; nextc = nextc->mnext)
+    {
+
 #if DISSYN == ON
       multicnt[nextc->level]++;
 #endif
 
-    /* Save space for upvector sizes, upvect ptrs, and upmats. */
+      /* Save space for upvector sizes, upvect ptrs, and upmats. */
       nextc->multisize = numterms;
-      if(numterms > 0) {
-	CALLOC(nextc->multi, numterms, double, ON, AMSC);
+      if(numterms > 0)
+      {
+	    mulALLOC(nextc->multi, numterms, double, ON, AMSC, sys, AllocTypeGeneric);
       }
-      if(nextc->upnumvects) {
-	CALLOC(nextc->upnumeles, nextc->upnumvects, int, ON, AMSC);
-	CALLOC(nextc->upvects, nextc->upnumvects, double*, ON, AMSC);
-	CALLOC(nextc->upmats, nextc->upnumvects, double**, ON, AMSC);
+      if(nextc->upnumvects)
+      {
+	    mulALLOC(nextc->upnumeles, nextc->upnumvects, int, ON, AMSC, sys, AllocTypeGeneric);
+	    mulALLOC(nextc->upvects, nextc->upnumvects, double*, ON, AMSC, sys, AllocTypePtrArray);
+	    mulALLOC(nextc->upmats, nextc->upnumvects, double**, ON, AMSC, sys, AllocTypePtrArray);
       }
     /* Go through nonempty kids and fill in upvectors and upmats. */
-      for(i=0, j=0; j < nextc->numkids; j++) {
-	if((kid = nextc->kids[j]) != NULL) { /* NULL => empty kid cube */
-	  if(kid->mul_exact == FALSE) { /* if kid has a multi */
-	    nextc->upvects[i] = kid->multi;
-	    nextc->upnumeles[i] = kid->multisize;
-	    if(multimats[j] == NULL) { /* Build the needed matrix only once. */
-	      multimats[j] = mulMulti2Multi(kid->x, kid->y, kid->z, nextc->x, 
+      for(i=0, j=0; j < nextc->numkids; j++)
+      {
+	    if((kid = nextc->kids[j]) != NULL)
+        { /* NULL => empty kid cube */
+	      if(kid->mul_exact == FALSE)
+          { /* if kid has a multi */
+	        nextc->upvects[i] = kid->multi;
+	        nextc->upnumeles[i] = kid->multisize;
+	        if (multimats[j] == NULL)
+            { /* Build the needed matrix only once. */
+	          multimats[j] = mulMulti2Multi(sys, kid->x, kid->y, kid->z, nextc->x,
 					    nextc->y, nextc->z, order);
-	    }
-	    nextc->upmats[i] = multimats[j];
+	        }
+	        nextc->upmats[i] = multimats[j];
 
 #if DMTCNT == ON
-	    M2Mcnt[kid->level][nextc->level]++; /* cnts usage, ~computation */
+	        M2Mcnt[kid->level][nextc->level]++; /* cnts usage, ~computation */
 #endif				/* only at most 8 mats really built/level */
 
-	  }
-	  else {		/* if kid is exact, has no multi */
-	    nextc->upvects[i] = kid->upvects[0];
-	    nextc->upnumeles[i] = kid->upnumeles[0];
-	    nextc->upmats[i] = mulQ2Multi(kid->chgs, kid->nbr_is_dummy[0],
-					  kid->upnumeles[0],
-					  nextc->x, nextc->y, nextc->z, order);
+	      }
+	      else
+          {		/* if kid is exact, has no multi */
+	        nextc->upvects[i] = kid->upvects[0];
+	        nextc->upnumeles[i] = kid->upnumeles[0];
+	        nextc->upmats[i] = mulQ2Multi(sys, kid->chgs, kid->nbr_is_dummy[0],
+			          		  kid->upnumeles[0],
+					        nextc->x, nextc->y, nextc->z, order);
 
 #if DMTCNT == ON
-	    Q2Mcnt[kid->level][nextc->level]++;
+	       Q2Mcnt[kid->level][nextc->level]++;
 #endif
 
-	  }
-	  i++;			/* only increments if kid is not empty */
-	}
+	      }
+	      i++;			/* only increments if kid is not empty */
+   	    }
       }
     }
   }
@@ -820,21 +863,21 @@ double **multimats[8];
 
   for each cube A in the direct list:
   1) if the cube is not exact (always the case if ADAPT = OFF)
-     a) and if DNTYPE = GRENGD build an L2P matrix from A to A 
+     a) and if DNTYPE = GRENGD build an L2P matrix from A to A
      b) and if DNTYPE = NOSHFT build an L2P matrix from each of A's ancestors
         with level > 1 (including A) to A
-     c) and if DNTYPE = NOLOCL build an M2P matrix from each of A's fake 
+     c) and if DNTYPE = NOLOCL build an M2P matrix from each of A's fake
         ilist entries to A (same action as 2b)
-  2) if the cube is exact, find the 1st ancestor of A, cube B, 
+  2) if the cube is exact, find the 1st ancestor of A, cube B,
      which either is not exact and is at level 2,3,4... or is at level 1
-     a) if B is at level 2,3,4... 
+     a) if B is at level 2,3,4...
         i) if DNTYPE = GRENGD, construct an L2P from B to A and M2P's
            from the cubes in the true interaction lists of A and all its
 	   ancestors up to and including B (a partial fake interaction list)
 	j) if DNTYPE = NOSHFT, find cube C, the ancestor of B at level 1;
 	   construct L2P's from the ancestors of B (including B but not C)
-	   to A and Q- or M2P's from the cubes in the true interaction lists 
-	   of A and all its ancestors up to and including B (a partial fake 
+	   to A and Q- or M2P's from the cubes in the true interaction lists
+	   of A and all its ancestors up to and including B (a partial fake
 	   interaction list)
 	k) if DNTYPE = NOLOCL, do 2b
      b) if B is at level 1 construct M2P's for all the cubes in A's
@@ -842,18 +885,18 @@ double **multimats[8];
 
   true interaction list - RADINTER = OFF, those sibling
   (same level) cubes of a given cube who are children of the neighbors
-  of the given cube's parent and are not neighbors of the given cube 
+  of the given cube's parent and are not neighbors of the given cube
   - ie those cubes required to cover charges well separated from the given
-  cube but not accounted for in the parent's local expansion 
-  - the flag NNBRS is the number of sibling cube "shells" taken as neighbors 
-  
+  cube but not accounted for in the parent's local expansion
+  - the flag NNBRS is the number of sibling cube "shells" taken as neighbors
+
   fake interaction list - RADINTER = OFF, the combined true interaction lists
   of a given cube and all its ancestors at levels 2,3,4...
 
-  if RADINTER = ON, any 8 siblings of the given cube which form a well 
+  if RADINTER = ON, any 8 siblings of the given cube which form a well
   separated cube one level up are included in the lists as a single higher
   level cube
-  
+
   if ADAPT = OFF, no cube is exact so step 2 is never done
 
   this routine is used alone if compiled with DNTYPE = NOLOCL or after
@@ -869,71 +912,79 @@ void mulMatEval(ssystem *sys)
 
   if(sys->depth < 2) return;	/* ret if upward pass not possible/worth it */
 
-  for(nc = sys->directlist; nc != NULL; nc = nc->dnext) {
+  for(nc = sys->directlist; nc != NULL; nc = nc->dnext)
+  {
 
     ASSERT(nc->level == sys->depth);
     ASSERT(nc->upnumvects > 0);
 
     /* allocate space for evaluation pass vectors; check nc's ancestors */
     /* First count the number of transformations to do. */
-    for(na = nc, ttlvects = 0; na->level > 1; na = na->parent) { 
-      if(na->loc_exact == FALSE && DNTYPE != NOLOCL) {
-	ttlvects++;  /* allow for na to na local expansion (L2P) */
-	if(DNTYPE == GRENGD) break; /* Only one local expansion if shifting. */
+    for(na = nc, ttlvects = 0; na->level > 1; na = na->parent)
+    {
+      if(na->loc_exact == FALSE && DNTYPE != NOLOCL)
+      {
+	    ttlvects++;  /* allow for na to na local expansion (L2P) */
+	    if(DNTYPE == GRENGD) break; /* Only one local expansion if shifting. */
       }
-      else {
-	ttlvects += na->interSize; /* room for Q2P and M2P xformations */
+      else
+      {
+	    ttlvects += na->interSize; /* room for Q2P and M2P xformations */
       }
     }
     nc->evalnumvects = ttlvects; /* save ttl # of transformations to do */
-    if(ttlvects > 0) {
-      CALLOC(nc->evalvects, ttlvects, double*, ON, AMSC);
-      CALLOC(nc->evalnumeles, ttlvects, int, ON, AMSC);
-      CALLOC(nc->evalmats, ttlvects, double**, ON, AMSC);
-      CALLOC(nc->eval_isQ2P, ttlvects, int, ON, AMSC);
+    if(ttlvects > 0)
+    {
+      mulALLOC(nc->evalvects, ttlvects, double*, ON, AMSC, sys, AllocTypePtrArray);
+      mulALLOC(nc->evalnumeles, ttlvects, int, ON, AMSC, sys, AllocTypeGeneric);
+      mulALLOC(nc->evalmats, ttlvects, double**, ON, AMSC, sys,AllocTypePtrArray );
+      mulALLOC(nc->eval_isQ2P, ttlvects, int, ON, AMSC, sys, AllocTypeGeneric);
     }
-    
+
 #if DILIST == ON
     fprintf(stdout, "\nInteraction list (%d entries) for ", ttlvects);
     disExParsimpcube(nc);
 #endif
-    
+
     /* set up exp/charge vectors and L2P, Q2P and/or M2P matrices as req'd */
-    for(j=0, na = nc, ttlvects = 0; na->level > 1; na = na->parent) { 
-      if(na->loc_exact == FALSE && DNTYPE != NOLOCL) {  
-	/* build matrices for local expansion evaluation */
-	nc->evalmats[j] = mulLocal2P(na->x, na->y, na->z, nc->chgs,
-				     nc->upnumeles[0], sys->order);
-	nc->evalnumeles[j] = na->localsize;
-	nc->evalvects[j] = na->local;
-/*	add_to_counts(nc, na->localsize, sys->evalL2Ps, sys->cntL2Ps); */
-	nc->eval_isQ2P[j] = FALSE;
-	j++; 
-	
+    for(j=0, na = nc, ttlvects = 0; na->level > 1; na = na->parent)
+    {
+      if(na->loc_exact == FALSE && DNTYPE != NOLOCL)
+      {
+        /* build matrices for local expansion evaluation */
+        nc->evalmats[j] = mulLocal2P(sys, na->x, na->y, na->z, nc->chgs,
+                         nc->upnumeles[0], sys->order);
+        nc->evalnumeles[j] = na->localsize;
+        nc->evalvects[j] = na->local;
+        /*	add_to_counts(nc, na->localsize, sys->evalL2Ps, sys->cntL2Ps); */
+        nc->eval_isQ2P[j] = FALSE;
+        j++;
+
 #if DMTCNT == ON
-	L2Pcnt[na->level][nc->level]++;
+	    L2Pcnt[na->level][nc->level]++;
 #endif
-	
+
 #if DILIST == ON
-	fprintf(stdout, "L2P: ");
-	disExtrasimpcube(na);
+	    fprintf(stdout, "L2P: ");
+	    disExtrasimpcube(na);
 #endif
-	if(DNTYPE == GRENGD) break; /* Only one local expansion if shifting. */
+	    if(DNTYPE == GRENGD) break; /* Only one local expansion if shifting. */
       }
-      else { /* build matrices for ancestor's (or cube's if 1st time) ilist */
+      else
+      { /* build matrices for ancestor's (or cube's if 1st time) ilist */
 	for(i=0; i < na->interSize; i++) {
 	  nexti = na->interList[i];
 	  if(nexti->mul_exact == TRUE) {
 	    nc->evalvects[j] = nexti->upvects[0];
-	    nc->evalmats[j] = Q2P(nexti->chgs, nexti->upnumeles[0], 
-				  nexti->nbr_is_dummy[0], nc->chgs, 
+	    nc->evalmats[j] = Q2P(sys, nexti->chgs, nexti->upnumeles[0],
+				  nexti->nbr_is_dummy[0], nc->chgs,
 				  nc->upnumeles[0], TRUE);
 	    /* this is a hack to fix the fact that direct stuff is */
 	    /* don't done componentwise */
 
 	    /* obsolete as of 12/92  due to eval_isQ2P stuff
-	    fixEvalDirect(nexti->chgs, nexti->upnumeles[0], 
-				  nexti->nbr_is_dummy[0], nc->chgs, 
+	    fixEvalDirect(nexti->chgs, nexti->upnumeles[0],
+				  nexti->nbr_is_dummy[0], nc->chgs,
 				  nc->upnumeles[0], nc->evalmats[j]);
 	    */
 
@@ -951,17 +1002,18 @@ void mulMatEval(ssystem *sys)
 	    disExtrasimpcube(nexti);
 #endif
 	  }
-	  else {
+	  else
+      {
 	    nc->evalvects[j] = nexti->multi;
-	    nc->evalmats[j] = mulMulti2P(nexti->x, nexti->y, nexti->z, 
-					 nc->chgs, nc->upnumeles[0], 
+	    nc->evalmats[j] = mulMulti2P(sys, nexti->x, nexti->y, nexti->z,
+					 nc->chgs, nc->upnumeles[0],
 					 sys->order);
 	    nc->evalnumeles[j] = nexti->multisize;
 	    nc->eval_isQ2P[j] = FALSE;
 /*	    add_to_counts(nc, nexti->multisize, sys->evalM2Ps, sys->cntM2Ps);*/
-	    
+
 	    j++;
-	    
+
 #if DMTCNT == ON
 	    M2Pcnt[nexti->level][nc->level]++;
 #endif
@@ -978,7 +1030,7 @@ void mulMatEval(ssystem *sys)
 }
 
 
-/* 
+/*
   sets up matrices for the downward pass
   For each cube in local list (parents always in list before kids):
   1) parent's local to child's local unless DNTYPE = NOSHFT or no parent local
@@ -1004,10 +1056,11 @@ void mulMatDown(ssystem *sys)
       if((depth <= 2) || (DNTYPE == NOSHFT)) vects = nc->interSize;
       else vects = nc->interSize + 1;
       nc->downnumvects = vects;
-      if(vects > 0) {
-	CALLOC(nc->downvects, vects, double*, ON, AMSC);
-	CALLOC(nc->downnumeles, vects, int, ON, AMSC);
-	CALLOC(nc->downmats, vects, double**, ON, AMSC);
+      if(vects > 0)
+      {
+	    mulALLOC(nc->downvects, vects, double*, ON, AMSC, sys, AllocTypePtrArray);
+	    mulALLOC(nc->downnumeles, vects, int, ON, AMSC, sys, AllocTypeGeneric);
+	    mulALLOC(nc->downmats, vects, double**, ON, AMSC, sys, AllocTypePtrArray);
       }
 
       parent = nc->parent;
@@ -1017,42 +1070,49 @@ void mulMatDown(ssystem *sys)
       localcnt[nc->level]++;
 #endif
 
-      if((depth <= 2) || (DNTYPE == NOSHFT)) i = 0; /* No parent local. */
-      else { /* Create the mapping matrix for the parent to kid. */
-	i = 1;
+      if((depth <= 2) || (DNTYPE == NOSHFT))
+      {
+        i = 0; /* No parent local. */
+      }
+      else
+      { /* Create the mapping matrix for the parent to kid. */
+	    i = 1;
 
-	nc->downmats[0] = mulLocal2Local(parent->x, parent->y, parent->z,
-					 nc->x, nc->y, nc->z, sys->order);
-	nc->downnumeles[0] = parent->localsize;
-	nc->downvects[0] = parent->local;
+	    nc->downmats[0] = mulLocal2Local(sys, parent->x, parent->y, parent->z,
+		     			 nc->x, nc->y, nc->z, sys->order);
+	    nc->downnumeles[0] = parent->localsize;
+	    nc->downvects[0] = parent->local;
 
 #if DMTCNT == ON
-	L2Lcnt[parent->level][nc->level]++;
+	   L2Lcnt[parent->level][nc->level]++;
 #endif
       }
 
       /* Go through the interaction list and create mapping matrices. */
-      for(j = 0; j < nc->interSize; j++, i++) {
-	ni = nc->interList[j];
-	if(ni->mul_exact == TRUE) {	/* ex->ex (Q2P) xforms in mulMatEval */
-	  nc->downvects[i] = ni->upvects[0];
-	  nc->downmats[i] = mulQ2Local(ni->chgs, ni->upnumeles[0],
+      for(j = 0; j < nc->interSize; j++, i++)
+      {
+	    ni = nc->interList[j];
+	    if(ni->mul_exact == TRUE)
+        {	/* ex->ex (Q2P) xforms in mulMatEval */
+	      nc->downvects[i] = ni->upvects[0];
+	      nc->downmats[i] = mulQ2Local(sys, ni->chgs, ni->upnumeles[0],
 				       ni->nbr_is_dummy[0],
 				       nc->x, nc->y, nc->z, sys->order);
-	  nc->downnumeles[i] = ni->upnumeles[0];
+	      nc->downnumeles[i] = ni->upnumeles[0];
 #if DMTCNT == ON
-	  Q2Lcnt[ni->level][nc->level]++;
+	      Q2Lcnt[ni->level][nc->level]++;
 #endif
-	}
-	else {
-	  nc->downvects[i] = ni->multi;
-	  nc->downmats[i] = mulMulti2Local(ni->x, ni->y, ni->z, nc->x, 
+	   }
+       else
+       {
+	     nc->downvects[i] = ni->multi;
+	     nc->downmats[i] = mulMulti2Local(sys, ni->x, ni->y, ni->z, nc->x,
 					   nc->y, nc->z, sys->order);
-	  nc->downnumeles[i] = ni->multisize;
+	     nc->downnumeles[i] = ni->multisize;
 #if DMTCNT == ON
-	  M2Lcnt[ni->level][nc->level]++;
+	     M2Lcnt[ni->level][nc->level]++;
 #endif
-	}
+	   }
       }
     }
   }

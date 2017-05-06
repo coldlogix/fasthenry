@@ -1,0 +1,118 @@
+1 Sync indSYS
+Running FastHenry 3.0wr (29Sep96, mod 010114)
+  Date: Sat Jul  5 16:24:26 2014
+  Host: localhost.localdomain
+Solution technique: ITERATIVE
+Matrix vector product method: DIRECT
+Preconditioner: ON
+Error tolerance: 0.001
+Reading from file: sline1.inp
+Title:
+* #1 superconducting microstripline, low impedance
+
+all lengths multiplied by 1e-06 to convert to meters
+Total number of filaments before multipole refine: 100
+Level 3, 50% exact
+Preconditioner Cost Estimate: 3.56e+08,  Average Matrix: 281.261
+totalq: 800  #cubes: 16  Direct_Cost: 340000
+To be broken ratio: 1
+Total number of filaments after multipole refine: 800
+level 3, #mulexact 0, #locexact 0
+level 2, #mulexact 0, #locexact 0
+level 1, #mulexact 0, #locexact 0
+
+Multipole Summary
+  Expansion order: 2
+  Number of partitioning levels: 3
+  Total number of filaments: 800
+Time for Multipole Setup: 0.001
+Scanning graph to find fundamental circuits...
+Number of Groundplanes : 0 
+Number of filaments:        800
+Number of segments:          32
+Number of nodes:             36
+Number of meshes:           771
+          ----from tree:                   3 
+          ----from planes: (before holes)  0 
+Number of conductors:         1   (rows of matrix in Zc.mat) 
+Number of columns:            1   (columns of matrix in Zc.mat) 
+Number of real nodes:        31
+0 Sync indSYS
+0 Aloc global
+0 Filling M
+filling M...
+1 Aloc global
+1 Filling M
+Rank 0 Alloc MtZM 00f3cf00 771 16
+Time to Form M and Z: 0.001
+1 Open b.mat
+filling R and L...
+Time to Form M and Z: 0.249
+Total Memory allocated: 15015 kilobytes
+Memory used and freed by lookup table: 280576 kilobytes
+0 Open b.mat
+0 Exchange internals
+0 Exchange internals done 
+1 frequencies and up to 2 parallel instances
+Frequency = 1e+09
+Rank 0 PreMtZM
+multiplying M*(R + jL)*transpose(M)
+1 Exchange internals
+1 Exchange internals done 
+1 frequencies and up to 2 parallel instances
+Frequency = 1e+09
+Rank 1 PreMtZM
+Rank 1 Sync Precond num_mesh 771
+putting in frequency 
+Forming sparse matrix preconditioner..
+Actual PrecCost: 6.24333e+06, aver_mat:73.0744
+Number of nonzeros before factoring: 68601
+Number of fill-ins after factoring: 0
+Time spent on forming Precond: 0.246
+Rank 0 Sync Precond num_mesh 771
+Rank 1 Sync MtZM 0x00000000 771 16
+Rank 0 Sync MtZM 0x00f3cf00 771 16
+Rank 0 Sync MList 009ce060
+Rank 1 Sync MList 00000000
+Rank 0 Sync Mtrans 009cf880
+Rank 1 Sync Mtrans 00000000
+Rank 0 Sync sparMatrix
+0: Counting elements Matrix 0x018a7470
+Rank 1 Sync sparMatrix
+1: Counting elements Matrix 0x018a7470
+0: MemTableEntries 2149 3523 kB
+1: MemTableEntries 2149 
+0: MemTable generated (3523 kB)
+1: MemTable copied
+1: Memory allocated (3523 kB)
+0: MemTable linked content copied 
+Rank 0 Sync ssystem
+0: MemTableEntries 1096 Charges 800
+1: MemTable linked content copied 
+Rank 1 Sync ssystem
+1: MemTableEntries 1096 Charges 800
+0: MemTable copied
+1: MemTable copied
+1: Memory allocated (60 kB)
+0: MemTable linked content copied 
+0 Pnt 2 indsys->sparMatrix 018a7470
+0: Counting elements Matrix 0x018a7470
+0: 2149 elements
+1: MemTable linked content copied 
+1 Pnt 2 indsys->sparMatrix 039e3bd0
+1: Counting elements Matrix 0x039e3bd0
+1: 2149 elements
+0 Pnt 2.1 indsys->sparMatrix 018a7470
+Rank 0 PrecalcConductor
+Rank 0 CalcConductor 0
+conductor 0 from node n1
+Calling gmres...
+0 DirectMatVec 
+Rank 0: Pre MatVec
+1 Pnt 2.1 indsys->sparMatrix 039e3bd0
+Rank 1 PrecalcConductor
+Rank 1 CalcConductor 0
+conductor 0 from node n1
+Calling gmres...
+1 DirectMatVec 
+Rank 1: Pre MatVec

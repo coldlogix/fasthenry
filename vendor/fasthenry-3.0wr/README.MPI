@@ -1,0 +1,16 @@
+Using MPI feature of Fasthenry
+
+Under Fedora 22:
+
+install openmpi (dnf openmpi openmpi-devel)
+
+module load mpi/openmpi
+
+then just run the make in src/fasthenry folder and it autoselects the MPI built
+
+run the program in paralell, e.g. in examples folder
+
+mpiexec -n 4 ../fasthenry 30pin.inp
+
+Please be aware there is a limitation running it distributed:
+It assumes same architecture, (processor types / endiness / compiler settings / memory aligment / ...)

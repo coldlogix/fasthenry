@@ -144,7 +144,8 @@ ElementPtr  pPivot;
 
 #if spCOMPLEX
     if (Matrix->Complex)
-    {   SolveComplexMatrix( Matrix, RHS, Solution IMAG_VECTORS_C );
+    {
+        SolveComplexMatrix( Matrix, RHS, Solution IMAG_VECTORS_C );
         return;
     }
 #endif
@@ -166,7 +167,7 @@ ElementPtr  pPivot;
 
 /* Forward elimination. Solves Lc = b.*/
     for (I = 1; I <= Size; I++)
-    {   
+    {
 /* This step of the elimination is skipped if Temp equals zero. */
         if ((Temp = Intermediate[I]) != 0.0)
         {   pPivot = Matrix->Diag[I];
@@ -285,6 +286,7 @@ register ComplexVector  ExtVector;
 ComplexNumber  Temp;
 
 /* Begin `SolveComplexMatrix'. */
+//    printf ("0 "); fflush(stdout);
 
     Size = Matrix->Size;
     Intermediate = (ComplexVector)Matrix->Intermediate;
@@ -298,10 +300,8 @@ ComplexNumber  Temp;
     RHS -= 2; Solution -= 2;
 #endif
 #endif
-
 /* Initialize Intermediate vector. */
     pExtOrder = &Matrix->IntToExtRowMap[Size];
-
 #if spSEPARATED_COMPLEX_VECTORS
     for (I = Size; I > 0; I--)
     {   Intermediate[I].Real = RHS[*(pExtOrder)];
@@ -316,14 +316,17 @@ ComplexNumber  Temp;
 /* Forward substitution. Solves Lc = b.*/
     for (I = 1; I <= Size; I++)
     {   Temp = Intermediate[I];
-
 /* This step of the substitution is skipped if Temp equals zero. */
         if ((Temp.Real != 0.0) OR (Temp.Imag != 0.0))
-        {   pPivot = Matrix->Diag[I];
+        {
+            pPivot = Matrix->Diag[I];
+            spValidatePtr(Matrix, pPivot);
+
 /* Cmplx expr: Temp *= (1.0 / Pivot). */
             CMPLX_MULT_ASSIGN(Temp, *pPivot);
             Intermediate[I] = Temp;
             pElement = pPivot->NextInCol;
+            spValidatePtr(Matrix, pElement);
             while (pElement != NULL)
             {
 /* Cmplx expr: Intermediate[Element->Row] -= Temp * *Element. */
@@ -338,7 +341,6 @@ ComplexNumber  Temp;
     for (I = Size; I > 0; I--)
     {   Temp = Intermediate[I];
         pElement = Matrix->Diag[I]->NextInRow;
-
         while (pElement != NULL)
         {
 /* Cmplx expr: Temp -= *Element * Intermediate[Element->Col]. */
@@ -481,7 +483,7 @@ RealNumber  Temp;
 
 /* Forward elimination. */
     for (I = 1; I <= Size; I++)
-    {   
+    {
 /* This step of the elimination is skipped if Temp equals zero. */
         if ((Temp = Intermediate[I]) != 0.0)
         {   pElement = Matrix->Diag[I]->NextInRow;
@@ -681,3 +683,5 @@ ComplexNumber  Temp;
     return;
 }
 #endif /* TRANSPOSE AND spCOMPLEX */
+
+

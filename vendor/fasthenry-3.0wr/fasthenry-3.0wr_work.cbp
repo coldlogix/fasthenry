@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="fasthenry" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/fasthenry" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/fasthenry" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="src/fasthenry/BreakupSeg.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/BreakupSeg.h" />
+		<Unit filename="src/fasthenry/Prec_cost.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/Prec_cost.h" />
+		<Unit filename="src/fasthenry/Precond.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/Precond.h" />
+		<Unit filename="src/fasthenry/SetupComputePsi.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/SetupComputePsi.h" />
+		<Unit filename="src/fasthenry/SetupMulti.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/SetupMulti.h" />
+		<Unit filename="src/fasthenry/addgroundplane.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/addgroundplane.h" />
+		<Unit filename="src/fasthenry/barnoldi.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/barnoldi.h" />
+		<Unit filename="src/fasthenry/bigmeshPre.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/bigmeshPre_direct.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/calcp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/calcp.h" />
+		<Unit filename="src/fasthenry/capsolve.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/cmplx.h" />
+		<Unit filename="src/fasthenry/contact.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/cx_ludecomp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/cx_ludecomp.h" />
+		<Unit filename="src/fasthenry/default_opts.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/default_opts.h" />
+		<Unit filename="src/fasthenry/deg_mutual.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/deg_mutual.h" />
+		<Unit filename="src/fasthenry/direct.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/dist_betw_fils.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/dist_betw_fils.h" />
+		<Unit filename="src/fasthenry/fillM.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/fillM.h" />
+		<Unit filename="src/fasthenry/find_nonuni_path.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/findpaths.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/findpaths.h" />
+		<Unit filename="src/fasthenry/gmres.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/gmres.h" />
+		<Unit filename="src/fasthenry/gp.h" />
+		<Unit filename="src/fasthenry/hole.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/hole.h" />
+		<Unit filename="src/fasthenry/induct.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/induct.h" />
+		<Unit filename="src/fasthenry/joelself.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/joelself.h" />
+		<Unit filename="src/fasthenry/makeMakefile.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/memmgmt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/memmgmt.h" />
+		<Unit filename="src/fasthenry/mulDo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/mulGlobal.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/mulGlobal.h" />
+		<Unit filename="src/fasthenry/mulLocal.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/mulMats.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/mulMulti.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/mulSetup.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/mulSetup.h" />
+		<Unit filename="src/fasthenry/mulStruct.h" />
+		<Unit filename="src/fasthenry/mutual.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/mutual.h" />
+		<Unit filename="src/fasthenry/newPrecond.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/newPrecond.h" />
+		<Unit filename="src/fasthenry/newPrecond_cube.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/newPrecond_cube.h" />
+		<Unit filename="src/fasthenry/parse_command_line.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/readGeom.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/readGeom.h" />
+		<Unit filename="src/fasthenry/read_tree.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/regurgitate.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/regurgitate.h" />
+		<Unit filename="src/fasthenry/resusage.h" />
+		<Unit filename="src/fasthenry/savemat_mod.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/savemat_mod.h" />
+		<Unit filename="src/fasthenry/sparse/MtrxError.h" />
+		<Unit filename="src/fasthenry/sparse/MtrxExpt.h" />
+		<Unit filename="src/fasthenry/sparse/spAllocate.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spBuild.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spCompat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spConfig.h" />
+		<Unit filename="src/fasthenry/sparse/spDefs.h" />
+		<Unit filename="src/fasthenry/sparse/spFactor.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spFortran.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spMatrix.h" />
+		<Unit filename="src/fasthenry/sparse/spOutput.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spSMP.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spSolve.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spSpice3.h" />
+		<Unit filename="src/fasthenry/sparse/spTest.hide.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/sparse/spUtils.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/uglieralloc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/fasthenry/uglieralloc.h" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

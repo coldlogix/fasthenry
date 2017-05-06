@@ -1,11 +1,11 @@
 /* This is FastHenry's overlapped preconditioner. It uses much of the
  code from olmulPrcond() from FastCap */
 
-#include "induct.h"
+#include "newPrecond_cube.h"
 
 #define PARTMESH OFF
 
-/* This near picks up only the hamming distance one cubes. */    
+/* This near picks up only the hamming distance one cubes. */
 #define HNEAR(nbr, nj, nk, nl) \
 ((ABS((nbr)->j - (nj)) + ABS((nbr)->k - (nk)) + ABS((nbr)->l - (nl))) <= 1)
 
@@ -24,15 +24,12 @@
 FILE *fp;
 
 /* SRW */
-void indPrecond(ssystem*, SYS*, double);
-void multPrecond(PRE_ELEMENT**, CX*, CX*, int);
 MELEMENT *getnext(MELEMENT*, int*);
 void cx_invert_dup(CX**, int, DUPS*);
 void mark_dup_mesh(MELEMENT**, int*, int, DUPS*, int*);
 void dumpPrecond(PRE_ELEMENT**, int);
-void indPrecond_direct(ssystem*, SYS*, double);
 
-	
+
 void indPrecond(ssystem *sys, SYS *indsys, double w)
 {
   cube *nc, *nnbr, *nnnbr;
@@ -141,7 +138,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
       is_in_nc[i] = 0;
       is_partial[i] = 0;
     }
-    for(i = 0; i < num_fils; i++) 
+    for(i = 0; i < num_fils; i++)
       findx[i] = -1;
 
     nsize = nc->directnumeles[0];
@@ -177,7 +174,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
 #endif
 	find_flux_density_row(mat, nc->directmats[0], i, nsize, nsize, 0, 0,
 			      nc_pc, nc_pc, nc_dummy, nc_dummy);
-      }	
+      }
     }
     offset = nsize;
     for(k=0; k < nc->numnbrs; k++) { /* loop on neighbors of nc */
@@ -315,7 +312,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
     if (meshsize > meshmax) {
       CALLOC(meshnum, meshsize + 10, int, ON, IND);
       CALLOC(meshmat, meshsize + 10, CX*, ON, IND);
-      for(i = 0; i < meshsize + 10; i++) 
+      for(i = 0; i < meshsize + 10; i++)
 	CALLOC(meshmat[i], meshsize + 10, CX, ON, IND);
       CALLOC(is_dup, meshsize + 10, DUPS, ON, IND);
       meshmax = meshsize + 10;
@@ -356,10 +353,10 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
 		{
 		  if (filcount[mtrani->filindex] > 0) { /*mesh not partial */
 		    mrow = indx[mtrani->filindex];
-		    meshmat[mrow][mcol].imag 
+		    meshmat[mrow][mcol].imag
 		      += w*mtrani->sign*mat[i][j]*mtranj->sign;
 		    if (i == j)
-		      meshmat[mrow][mcol].real 
+		      meshmat[mrow][mcol].real
 			+= mtrani->sign*R[fillist[i]]*mtranj->sign;
 		  }
 		}
@@ -398,7 +395,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
     /* this uses the allocated PRE_ELEMENTs that are there. */
     /* It is based on the fact that there are going to be more */
     for(i = 0; i < meshsize; i++) {
-      if (is_in_nc[meshnum[i]] != 1 || is_dup[i].sign != 0 
+      if (is_in_nc[meshnum[i]] != 1 || is_dup[i].sign != 0
 	  || is_partial[meshnum[i]] == TRUE) {
 	/* this mesh is in one of the neighbors or it's a duplicate */
 	continue;
@@ -428,7 +425,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
 	  else
 	    /* it's a duplicate, so use the duplicates inverse value. */
 	    /* this effectively 'adds' the mesh currents of all duplicates */
-	    cx_scalar_mult(pre->value, 
+	    cx_scalar_mult(pre->value,
 			   is_dup[j].sign, meshmat[i][is_dup[j].dup]);
 	  prelast = pre;
 	  pre = pre->next;
@@ -443,7 +440,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
 /*  bigmeshPre(sys, indsys, w);  */
 
   /* make sure all meshes get preconditioned */
-  for(i = 0; i < num_mesh; i++) 
+  for(i = 0; i < num_mesh; i++)
     if (Precond[i] == NULL) {
       /* set to PARTMESH = BLAH if calling bigmeshPre() */
 #if PARTMESH == OFF
@@ -457,7 +454,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
 
       /* let's do better than the identity */
       /* Try adding up self terms in mesh and inverting */
-      
+
       tempsum = CXZERO;
       for(melem = Mlist[i]; melem != NULL; melem = melem->mnext) {
 	filchg = melem->fil->pchg;
@@ -483,7 +480,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
 
       /* for experiment */
 /*    tempsum.imag = 0; */
-	  
+
       cx_div(Precond[i]->value, CXONE, tempsum);
       if (indsys->opts->debug == ON)
 	fprintf(stdout, "Sum of self terms: %lg +i*%lg\n",tempsum.real, tempsum.imag);
@@ -493,7 +490,7 @@ void indPrecond(ssystem *sys, SYS *indsys, double w)
       exit(1);
 #endif
     }
-  if (indsys->opts->dumpMats == ON || indsys->opts->dumpMats == PRE) 
+  if (indsys->opts->dumpMats == ON || indsys->opts->dumpMats == PRE)
     dumpPrecond(Precond, num_mesh);
 
   if (indsys->opts->debug == ON)
@@ -525,12 +522,12 @@ void multPrecond(PRE_ELEMENT **Precond, CX *x, CX *result, int size)
 MELEMENT *getnext(MELEMENT *mel, int *findx)
 {
   while(mel != NULL && findx[mel->filindex] == -1)
-    mel = mel->mnext; 
+    mel = mel->mnext;
 
   return mel;
 }
-/* 
-  In-place inverts a matrix using guass-jordan. 
+/*
+  In-place inverts a matrix using guass-jordan.
   Skips rows and columns with is_dup[i].sign != 1.
 */
 void cx_invert_dup(CX **mat, int size, DUPS *is_dup)
@@ -646,7 +643,7 @@ void dumpPrecond(PRE_ELEMENT **Precond, int size)
       temprow[j] = 0;
     for(pre = Precond[i]; pre != NULL; pre = pre->next)
       temprow[pre->meshcol] = pre->value.real;
-    savemat_mod(fp, machine+100, "Pre", rows, cols, 1, temprow, 
+    savemat_mod(fp, machine+100, "Pre", rows, cols, 1, temprow,
 		  (double *)NULL, i, cols);
   }
 
@@ -656,7 +653,7 @@ void dumpPrecond(PRE_ELEMENT **Precond, int size)
       temprow[j] = 0;
     for(pre = Precond[i]; pre != NULL; pre = pre->next)
       temprow[pre->meshcol] = pre->value.imag;
-    savemat_mod(fp, machine+100, "Pre", rows, cols, 1, temprow, 
+    savemat_mod(fp, machine+100, "Pre", rows, cols, 1, temprow,
 		  (double *)NULL, 1, cols);
   }
 
@@ -664,8 +661,8 @@ void dumpPrecond(PRE_ELEMENT **Precond, int size)
   printf("Done\n");
 }
 
-  
-  
+
+
 void indPrecond_direct(ssystem *sys, SYS *indsys, double w)
 {
   cube *nc, *nnbr, *nnnbr;
@@ -744,7 +741,7 @@ void indPrecond_direct(ssystem *sys, SYS *indsys, double w)
     if (meshsize > meshmax) {
       CALLOC(meshnum, meshsize + 10, int, ON, IND);
       CALLOC(meshmat, meshsize + 10, CX*, ON, IND);
-      for(i = 0; i < meshsize + 10; i++) 
+      for(i = 0; i < meshsize + 10; i++)
 	CALLOC(meshmat[i], meshsize + 10, CX, ON, IND);
       meshmax = meshsize + 10;
     }
@@ -834,7 +831,7 @@ void indPrecond_direct(ssystem *sys, SYS *indsys, double w)
 	    prelast->next = pre;
 	  }
 	}
-      }	  
+      }
 #endif
 
 
@@ -845,7 +842,7 @@ void indPrecond_direct(ssystem *sys, SYS *indsys, double w)
 /*  bigmesh_direct(sys, indsys, w); */
 
   /* make sure all meshes get preconditioned */
-  for(i = 0; i < num_mesh; i++) 
+  for(i = 0; i < num_mesh; i++)
     if (Precond[i] == NULL) {
 /*
       CALLOC(Precond[i], 1, PRE_ELEMENT, ON, IND);
@@ -861,4 +858,4 @@ void indPrecond_direct(ssystem *sys, SYS *indsys, double w)
   if (indsys->opts->dumpMats == ON || indsys->opts->dumpMats == PRE)
     dumpPrecond(Precond, num_mesh);
 
-}  
+}

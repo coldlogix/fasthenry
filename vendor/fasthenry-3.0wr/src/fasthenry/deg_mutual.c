@@ -1,17 +1,16 @@
-/* This file contains functions for computing the mutual inductance 
+/* This file contains functions for computing the mutual inductance
    between fils which have one or more degenerate dimensions. For example,
    it's width = 10^4 * height */
 
-#include "induct.h"
+#include "deg_mutual.h"
+#include "joelself.h"
+#include "mutual.h"
 
 #define LEN 4
 #define WID 2
 #define HEIGHT 1
 
 /* SRW */
-enum degen_type find_deg_dims(FILAMENT*);
-double compute_for_degenerate(FILAMENT*, FILAMENT*, int, double*, double*,
-    enum degen_type, enum degen_type, double);
 void setup_tape_to_tape(FILAMENT*, FILAMENT*, int, double*, double*,
     enum degen_type, enum degen_type, FILAMENT*, FILAMENT*, double**, double**);
 double do_tape_to_brick(FILAMENT*, FILAMENT*, int, double*, double*,
@@ -21,7 +20,7 @@ double do_tape_to_brick(FILAMENT*, FILAMENT*, int, double*, double*,
 enum degen_type find_deg_dims(FILAMENT *fil)
 {
   double max;
-  
+
   max = MAX(fil->length, fil->width);
   max = MAX(max, fil->height);
 
@@ -144,7 +143,7 @@ double do_tape_to_brick(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
         wid_brick[i] = x_j[i];
         hei_brick[i] = y_j[i];
       }
-    
+
     }
     else {
       nx_j = y_flat;
@@ -157,7 +156,7 @@ double do_tape_to_brick(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
         wid_brick[i] = y_j[i];
         hei_brick[i] = x_j[i];
       }
-    
+
     }
   }
 
@@ -167,7 +166,7 @@ double do_tape_to_brick(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
     orig_y[i] = nfil_m.y[i];
     orig_z[i] = nfil_m.z[i];
   }
-  
+
   if (nfil_m.width > nfil_m.height) {
     /* the height direction will be done discretely */
     small_dim = nfil_m.height/2;
@@ -175,7 +174,7 @@ double do_tape_to_brick(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
     dR = hei_brick;
     if (whperp == 0)   /* useful for testing only. if forced == 1 */
       ndeg_m = flat;
-    else 
+    else
       ndeg_m = skinny;
   }
   else {
@@ -192,7 +191,7 @@ double do_tape_to_brick(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
   /* if forced == 1, then setting ndeg_j matters */
   ndeg_j = flat;
   nfil_j.height = 0.0;   /* insure we use the middle of filament x-section*/
-    
+
   gpoints = 3;
   /* now do gaussian quadrature of tape_to_tape to approximate */
   sum = 0;
@@ -202,7 +201,7 @@ double do_tape_to_brick(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
       nfil_m.y[j] = orig_y[j] + dR[YY]*small_dim*Gpoint[gpoints][i];
       nfil_m.z[j] = orig_z[j] + dR[ZZ]*small_dim*Gpoint[gpoints][i];
     }
-    sum += Gweight[gpoints][i]*exact_mutual(&nfil_j, &nfil_m, whperp, 
+    sum += Gweight[gpoints][i]*exact_mutual(&nfil_j, &nfil_m, whperp,
 					    nx_j, ny_j, ndeg_j, ndeg_m);
   }
 

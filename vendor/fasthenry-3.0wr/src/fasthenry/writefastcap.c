@@ -1,9 +1,12 @@
 #include <stdio.h>
 #include <math.h>
-#include "induct.h"
+#include "writefastcap.h"
+#include "findpaths.h"
+#include "addgroundplane.h"
+#include "readGeom.h"
+
 
 /* SRW */
-void writefastcap(char*, char*, SYS*);
 void make_between(FILE*, GROUNDPLANE*, double, double, double, double, int,
     int);
 void unit_cross_product(double, double, double, double, double, double,
@@ -86,7 +89,7 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
       thin = FALSE;
 
 
-#if 1==0  
+#if 1==0
     /* first node end */
     fprintf(fp, "Q %d ",i);
     x = node0->x - 0.5 * wx * width + 0.5 * hx * height;
@@ -97,17 +100,17 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
     x = node0->x - 0.5 * wx * width - 0.5 * hx * height;
     y = node0->y - 0.5 * wy * width - 0.5 * hy * height;
     z = node0->z - 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
 
     x = node0->x + 0.5 * wx * width - 0.5 * hx * height;
     y = node0->y + 0.5 * wy * width - 0.5 * hy * height;
     z = node0->z + 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     x = node0->x + 0.5 * wx * width + 0.5 * hx * height;
     y = node0->y + 0.5 * wy * width + 0.5 * hy * height;
     z = node0->z + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
 
     fprintf(fp,"\n");
     /* write out shade of grey to color */
@@ -119,22 +122,22 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
     y = node1->y - 0.5 * wy * width + 0.5 * hy * height;
     z = node1->z - 0.5 * wz * width + 0.5 * hz * height;
     fprintf(fp,"%lg %lg %lg ",x,y,z);
-  
+
     x = node1->x - 0.5 * wx * width - 0.5 * hx * height;
     y = node1->y - 0.5 * wy * width - 0.5 * hy * height;
     z = node1->z - 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
 
     x = node1->x + 0.5 * wx * width - 0.5 * hx * height;
     y = node1->y + 0.5 * wy * width - 0.5 * hy * height;
     z = node1->z + 0.5 * wz * width - 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     x = node1->x + 0.5 * wx * width + 0.5 * hx * height;
     y = node1->y + 0.5 * wy * width + 0.5 * hy * height;
     z = node1->z + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     fprintf(fp,"\n");
     /* write out shade of grey to color */
     fprintf(shade_fp,"%d\n",seg->is_deleted);
@@ -151,13 +154,13 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
       x = node0->x - 0.5 * wx * width - 0.5 * hx * height;
       y = node0->y - 0.5 * wy * width - 0.5 * hy * height;
       z = node0->z - 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
 
       x = node1->x - 0.5 * wx * width - 0.5 * hx * height;
       y = node1->y - 0.5 * wy * width - 0.5 * hy * height;
       z = node1->z - 0.5 * wz * width - 0.5 * hz * height;
-  
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       x = node1->x - 0.5 * wx * width + 0.5 * hx * height;
       y = node1->y - 0.5 * wy * width + 0.5 * hy * height;
       z = node1->z - 0.5 * wz * width + 0.5 * hz * height;
@@ -172,43 +175,43 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
       x = node0->x + 0.5 * wx * width - 0.5 * hx * height;
       y = node0->y + 0.5 * wy * width - 0.5 * hy * height;
       z = node0->z + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
       x = node0->x + 0.5 * wx * width + 0.5 * hx * height;
       y = node0->y + 0.5 * wy * width + 0.5 * hy * height;
       z = node0->z + 0.5 * wz * width + 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
       x = node1->x + 0.5 * wx * width + 0.5 * hx * height;
       y = node1->y + 0.5 * wy * width + 0.5 * hy * height;
       z = node1->z + 0.5 * wz * width + 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
       x = node1->x + 0.5 * wx * width - 0.5 * hx * height;
       y = node1->y + 0.5 * wy * width - 0.5 * hy * height;
       z = node1->z + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       fprintf(fp, "\n");
       /* write out shade of grey to color */
       fprintf(shade_fp,"%d\n",seg->is_deleted);
     }
-  
+
     /* top */
     fprintf(fp, "Q %d ",i);
     x = node0->x - 0.5 * wx * width + 0.5 * hx * height;
     y = node0->y - 0.5 * wy * width + 0.5 * hy * height;
     z = node0->z - 0.5 * wz * width + 0.5 * hz * height;
     fprintf(fp,"%lg %lg %lg ",x,y,z);
-   
+
     x = node0->x + 0.5 * wx * width + 0.5 * hx * height;
     y = node0->y + 0.5 * wy * width + 0.5 * hy * height;
     z = node0->z + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
-   
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
+
     x = node1->x + 0.5 * wx * width + 0.5 * hx * height;
     y = node1->y + 0.5 * wy * width + 0.5 * hy * height;
     z = node1->z + 0.5 * wz * width + 0.5 * hz * height;
-    fprintf(fp,"%lg %lg %lg ",x,y,z); 
+    fprintf(fp,"%lg %lg %lg ",x,y,z);
     x = node1->x - 0.5 * wx * width + 0.5 * hx * height;
     y = node1->y - 0.5 * wy * width + 0.5 * hy * height;
     z = node1->z - 0.5 * wz * width + 0.5 * hz * height;
@@ -225,30 +228,30 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
       x = node0->x - 0.5 * wx * width - 0.5 * hx * height;
       y = node0->y - 0.5 * wy * width - 0.5 * hy * height;
       z = node0->z - 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
 
       x = node0->x + 0.5 * wx * width - 0.5 * hx * height;
       y = node0->y + 0.5 * wy * width - 0.5 * hy * height;
       z = node0->z + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       x = node1->x + 0.5 * wx * width - 0.5 * hx * height;
       y = node1->y + 0.5 * wy * width - 0.5 * hy * height;
       z = node1->z + 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
       x = node1->x - 0.5 * wx * width - 0.5 * hx * height;
       y = node1->y - 0.5 * wy * width - 0.5 * hy * height;
       z = node1->z - 0.5 * wz * width - 0.5 * hz * height;
-      fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+      fprintf(fp,"%lg %lg %lg ",x,y,z);
+
       fprintf(fp,"\n");
       /* write out shade of grey to color */
       fprintf(shade_fp,"%d\n",seg->is_deleted);
     }
   }
-  
-  if (indsys->opts->gp_draw == OFF) 
+
+  if (indsys->opts->gp_draw == OFF)
    for(gp = indsys->planes; gp != NULL; gp = gp->next) {
-      
+
     unit_cross_product(gp->x[0]-gp->x[1], gp->y[0]-gp->y[1], gp->z[0]-gp->z[1],
 		       gp->x[2]-gp->x[1], gp->y[2]-gp->y[1], gp->z[2]-gp->z[1],
 		       &wx, &wy, &wz);
@@ -256,7 +259,7 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
       width = gp->thick;
     else
       width = gp->segs1[0][0]->height;
-    
+
     for(j = 0; j < 3; j++) {
       k = j+1;
       fprintf(fp, "Q %d ",i + j);
@@ -270,7 +273,7 @@ void writefastcap(char *fname, char *shading_name, SYS *indsys)
     make_between(fp, gp, wx,wy,wz,width,j,k);
     fprintf(shade_fp,"%d\n",0);
     i += 4;
-   }    
+   }
 
   /* clear is_deleted */
   clear_marks(indsys);
@@ -287,23 +290,23 @@ void make_between(FILE *fp, GROUNDPLANE *gp, double wx, double wy, double wz,
   x = gp->x[j] - 0.5 * wx * width;
   y = gp->y[j] - 0.5 * wy * width;
   z = gp->z[j] - 0.5 * wz * width;
-  fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+  fprintf(fp,"%lg %lg %lg ",x,y,z);
+
   x = gp->x[j] + 0.5 * wx * width;
   y = gp->y[j] + 0.5 * wy * width;
   z = gp->z[j] + 0.5 * wz * width;
-  fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+  fprintf(fp,"%lg %lg %lg ",x,y,z);
+
   x = gp->x[k] + 0.5 * wx * width;
   y = gp->y[k] + 0.5 * wy * width;
   z = gp->z[k] + 0.5 * wz * width;
-  fprintf(fp,"%lg %lg %lg ",x,y,z); 
+  fprintf(fp,"%lg %lg %lg ",x,y,z);
 
   x = gp->x[k] - 0.5 * wx * width;
   y = gp->y[k] - 0.5 * wy * width;
   z = gp->z[k] - 0.5 * wz * width;
-  fprintf(fp,"%lg %lg %lg ",x,y,z); 
-  
+  fprintf(fp,"%lg %lg %lg ",x,y,z);
+
   fprintf(fp,"\n");
 }
 
@@ -325,8 +328,8 @@ void unit_cross_product(double x1, double y1, double z1, double x2, double y2,
     *cz = *cz/magc;
   }
 }
-    
-/* attempts to choose shades for each segment to make seeing the condutors 
+
+/* attempts to choose shades for each segment to make seeing the condutors
    easier.  To see shades, run with the zbuf -q options */
 
 void assign_shades(SYS *indsys)
@@ -350,7 +353,7 @@ void assign_shades(SYS *indsys)
 
       /* for each filament in this mesh */
       for(m = Mlist[elem->index]; m != NULL; m = m->mnext)
-        
+
         m->fil->segm->is_deleted = greylev;
   }
 
@@ -362,7 +365,7 @@ void assign_shades(SYS *indsys)
 
     nodes2 = gp->num_nodes2;
     nodes1 = gp->num_nodes1;
-    
+
     for(i = 0; i < nodes2; i++)
       for(j = 0; j < (nodes1 - 1); j++)
         if (gp->segs1[j][i] != NULL)  /* it's not part of a hole */

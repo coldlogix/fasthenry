@@ -2,6 +2,7 @@
 
 SRC = src
 FASTH = $(SRC)/fasthenry
+TEST = $(SRC)/test
 ZBUF = $(SRC)/zbuf
 
 default:
@@ -14,7 +15,11 @@ default:
 fasthenry:
 	cd $(FASTH) ; $(MAKE) fasthenry
 
-zbuf: 
+test:
+	cd $(TEST) ; $(MAKE) test
+
+
+zbuf:
 	cd $(ZBUF) ; $(MAKE) zbuf
 
 all: fasthenry zbuf
@@ -22,3 +27,4 @@ all: fasthenry zbuf
 clean:
 	cd $(FASTH) ; $(MAKE) clean
 	cd $(ZBUF) ; $(MAKE) clean
+	cd $(TEST) ; $(MAKE) clean

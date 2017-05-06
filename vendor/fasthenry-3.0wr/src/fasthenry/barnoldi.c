@@ -18,7 +18,7 @@
  *       are done in the p-norm, defined by the matrix P.
  *       It fills the indsys->Ar,Br,Cr matrices with the model and
  *       returns the order of the model computed.
- * 
+ *
  * DIAGNOSTICS
  *
  * Modifications:
@@ -26,27 +26,20 @@
  *
  *****************************************************************************/
 
+/* Global definition */
+#include "barnoldi.h"
 
-#include "induct.h"
+/* Local definition */
+#include "savemat_mod.h"
 #include "sparse/spMatrix.h"
+#include "memmgmt.h"
 
 /* SRW */
-// typedef int (*barnoldi_cb)(double**, ssystem*, double**, charge*, SYS*, int,
-//     int, int);
-int ArnoldiROM(double**, double**, double**, char**, int, int, int, int,
-    barnoldi_cb, SYS*, ssystem*, charge*);
 int qr(double**, double**, double**, int, int, int);
 int qr_P(double**, double**, double**, double**, int, int, int, char*);
-int dumpROM(FILE*, double**, double**, double**, double**, int, int, int);
-void dumpROMequiv_circuit(FILE*, double**, double**, double**, double**,
-    int, int, int, char*, char*, SYS*);
 int dumpROMbin(FILE*, double**, double**, double**, double**, int, int, int);
-int createMRMt(char**, SYS*);
 int createMRMtinvMLMt(double***, SYS*, char*);
-int realComputePsi(double**, ssystem*, double**, charge*, SYS*, int, int, int);
-int realMatVect(double**, ssystem*, double**, charge*, SYS*, int, int, int);
 int printRowCol(double**, int, int, int, int);
-void formMLMt(SYS*);
 void ZeroMatrix(double**, int, int);
 
 
@@ -58,11 +51,11 @@ int ArnoldiROM(double **B, double **C, double **D, char **P, int size,
   static double **H = NULL, **V, **R1, **W, **X, **Z;
   int i, j, k, iter, bter;
   int s, q;
-  
+
   /* s is the number of right-hand sides for Arnoldi */
   s = numinp;
   q = q_orig;
-  
+
   if (H != NULL)
     fprintf(stderr, "ArnoldiROM called more than once, you should fix memory \
 to make this efficient\n");
@@ -81,7 +74,7 @@ to make this efficient\n");
   ZeroMatrix(X, s, s);
 
   if (size <= (q)*s) {
-    q = size/s; 
+    q = size/s;
     fprintf(stderr, "\n**Warning: Reduced order model would have higher order\
  (%d x %d = %d) than\n** the original system (%d)!  Will compute a %dth order\
  model instead. **\n\n",s,q_orig,s*q_orig,size, q*s);
@@ -102,7 +95,7 @@ to make this efficient\n");
 
     /* new basis block */
     for ( bter = (iter ? iter - 1 : 0); bter <= iter; bter++) {
-      
+
       /* compute H(ims:is, jms:js) = V(:, ims:is)^T * W; */
       for (i = 0; i < s; i++) {
         for (j = 0; j < s; j++) {
@@ -132,8 +125,8 @@ to make this efficient\n");
         H[(iter+1) * s + i][iter * s + j] = X[i][j];
       }
     }
-  } 
-  
+  }
+
   /* allocate and compute the reduced order model matrices */
   indsys->Ar = H;
   indsys->Br = MatrixAlloc(q * s, s, sizeof(double));
@@ -158,7 +151,7 @@ to make this efficient\n");
   indsys->Dr = D;
 
   /* could clean some stuff but that's not the way FastHenry works... */
-  
+
   return(q);
 }
 
@@ -187,7 +180,7 @@ int qr(double **Bmat, double **Qmat, double **Rmat, int numlin, int numcol,
 {
   int k, j, i;
   double normsq;
-  
+
   for (k = 0; k < numcol; k++) {
     /* get the 2-norm of the k-th column */
     for (normsq = 0.0, i = 0; i < numlin; i++)
@@ -206,7 +199,7 @@ int qr(double **Bmat, double **Qmat, double **Rmat, int numlin, int numcol,
         Bmat[i][j] -= Qmat[i][block * numcol + k] * Rmat[k][j];
     }
   }
-  
+
   /* yeah, the lint thing */
   return (1);
 }
@@ -230,7 +223,7 @@ int qr(double **Bmat, double **Qmat, double **Rmat, int numlin, int numcol,
  *       piece will be used to store the orthogonal matrix
  *
  *
- *       Q is orthogonal in the P-norm!  
+ *       Q is orthogonal in the P-norm!
  *
  *
  *****************************************************************************/
@@ -244,7 +237,7 @@ int qr_P(double **Bmat, double **Qmat, double **Rmat, double **Z, int numlin,
 
   if (tcol == NULL)
     tcol = (double *) MattAlloc(numlin, sizeof(double));
-  
+
   for (k = 0; k < numcol; k++) {
     /* copy column, tcol = w */
     for (i = 0; i < numlin; i++)
@@ -270,7 +263,7 @@ int qr_P(double **Bmat, double **Qmat, double **Rmat, double **Z, int numlin,
         Bmat[i][j] -= Qmat[i][block * numcol + k] * Rmat[k][j];
     }
   }
-  
+
   /* yeah, the lint thing */
   return (1);
 }
@@ -301,7 +294,7 @@ int dumpROM(FILE *fp, double **Ar, double **Br, double **Cr, double **Dr,
   fprintf(fp, "%%%% (read into matlab)\n\n");
 
   /* dump Ar */
-  if (Ar != (double **)NULL) {  
+  if (Ar != (double **)NULL) {
     fprintf(fp, "Ar = [");
     for (i = 0; i < size; i++) {
       for (j = 0; j < size; j++) {
@@ -366,7 +359,7 @@ int dumpROM(FILE *fp, double **Ar, double **Br, double **Cr, double **Dr,
 
   /* add extra stuff to compute residue form */
   if (Ar != (double **)NULL &&
-      Br != (double **)NULL && 
+      Br != (double **)NULL &&
       Cr != (double **)NULL) {
     fprintf(fp, "\n%%%% Matlab code to obtain pole-residue form\n\n");
     fprintf(fp, "%%%% first some miscellaneous stuff\n");
@@ -404,7 +397,7 @@ int dumpROM(FILE *fp, double **Ar, double **Br, double **Cr, double **Dr,
  * Side-Effects: none
  *
  * Description: creates a spice equivalent circuit composed of resistors,
- * capacitors and Voltage controlled current sources to represent the 
+ * capacitors and Voltage controlled current sources to represent the
  * reduced-order model obatined via the block Arnoldi process.
  *
  * The assumed state space model is supposed to be of the form
@@ -416,7 +409,7 @@ int dumpROM(FILE *fp, double **Ar, double **Br, double **Cr, double **Dr,
  * nodes. As KCL equations:
  *
  *  - d/dt Ar x + x + Br v = 0
- * 
+ *
  * Thus we also need to represesnt x (=  I*x) which will be resistors
  *  of 1 ohm to ground and also Br*v which are VCCS's.
  *
@@ -436,7 +429,7 @@ void dumpROMequiv_circuit(FILE *fp, double **Ar, double **Br, double **Cr,
     double **Dr, int size, int numinp, int numout, char *title, char *suffix,
     SYS *indsys)
 {
-  
+
   int i,j;
   EXTERNAL *ext;
 
@@ -444,7 +437,7 @@ void dumpROMequiv_circuit(FILE *fp, double **Ar, double **Br, double **Cr,
     fprintf(stderr,"Error: Inputs and outputs assumed to be coincident. No equiv cicuited dumped\n");
     return;
   }
-  
+
   fprintf(fp, "* Equivalent circuit for state-space model from analysis of FastHenry file:\n");
   fprintf(fp, "* %s\n",title);
   fprintf(fp, "* Fasthenry generates  A dx/dt = x + B Vin,  Iout = C^t x + D Vin\n");
@@ -463,7 +456,7 @@ void dumpROMequiv_circuit(FILE *fp, double **Ar, double **Br, double **Cr,
 
   fprintf(fp, "* pn mn is a plus/minus port pair of nodes, where n is the port number\n");
   fprintf(fp, "\n.subckt ROMequiv%s ", suffix);
-  
+
   for(i = 0; i < numinp; i++)
     fprintf(fp, " p%d m%d",i,i);
   fprintf(fp, "\n");
@@ -506,7 +499,7 @@ void dumpROMequiv_circuit(FILE *fp, double **Ar, double **Br, double **Cr,
   }
 
   /* do Ar */
-  if (Ar != (double **)NULL) {  
+  if (Ar != (double **)NULL) {
     double sum;
     fprintf(fp, "* The A matrix.  Coefficient of dx/dt.  constructed from capacitors. A = A^t\n");
     for (i = 0; i < size; i++) {
@@ -526,7 +519,7 @@ void dumpROMequiv_circuit(FILE *fp, double **Ar, double **Br, double **Cr,
         if (i != j)
           sum += Ar[i][j];
 
-      /* do the diagonal.  Add in the off-diag parts and set the sum to 
+      /* do the diagonal.  Add in the off-diag parts and set the sum to
          ground */
       fprintf(fp, "CA_%d_%d state%d 0  %13.6lg ic=0\n", i,i,i,-(Ar[i][i]+sum));
 
@@ -534,7 +527,7 @@ void dumpROMequiv_circuit(FILE *fp, double **Ar, double **Br, double **Cr,
   }
 
   fprintf(fp, ".ends ROMequiv%s\n", suffix);
-  
+
 }
 /******************************************************************************
  * dumpROMbin()
@@ -578,7 +571,7 @@ int dumpROMbin(FILE *fp, double **A, double **B, double **C, double **D,
     for(j = 0; j < numinp; j++) {
       for(i = 0; i < size; i++)
         temp[i] = B[i][j];
-      savemat_mod(fp, machine+100, "Bsys", size, numinp, 0, temp, 
+      savemat_mod(fp, machine+100, "Bsys", size, numinp, 0, temp,
                   (double *)NULL, j, size);
     }
   }
@@ -586,15 +579,15 @@ int dumpROMbin(FILE *fp, double **A, double **B, double **C, double **D,
     for(j = 0; j < numout; j++) {
       for(i = 0; i < size; i++)
         temp[i] = C[i][j];
-      savemat_mod(fp, machine+100, "Csys", size, numout, 0, temp, 
+      savemat_mod(fp, machine+100, "Csys", size, numout, 0, temp,
                   (double *)NULL, j, size);
     }
   }
   if (D != (double **)NULL) {
     for(j = 0; j < numinp; j++) {
-      for(i = 0; i < numout; i++) 
+      for(i = 0; i < numout; i++)
         temp[i] = D[i][j];
-      savemat_mod(fp, machine+100, "Dsys", numout, numinp, 0, temp, 
+      savemat_mod(fp, machine+100, "Dsys", numout, numinp, 0, temp,
                   (double *)NULL, j, numout);
     }
   }
@@ -659,7 +652,7 @@ int createMRMt(char **MRMt_Ptr, SYS *indsys)
 
   /* return the value */
   *MRMt_Ptr = MRMt;
-  
+
   return(1);
 }
 
@@ -674,7 +667,7 @@ int createMRMt(char **MRMt_Ptr, SYS *indsys)
  * Side-Effects: MRMtinvMLMt gets filled in with
  *
  * Description: Creates and fills the matrix MRMtinvMLMt used in the model
- *      generation.  
+ *      generation.
  *****************************************************************************/
 
 int createMRMtinvMLMt(double ***MRMtinvMLMt_Ptr, SYS *indsys, char *MRMt)
@@ -808,7 +801,7 @@ int realComputePsi(double **Prod, ssystem *sys, double **B, charge *chglist,
     for (i = 0; i < branches; i++) {
       Ib[i] = 0.0;
       for (mtemp = Mtrans[i]; mtemp != NULL; mtemp = mtemp->mnext) {
-        if (mtemp->sign == 1) 
+        if (mtemp->sign == 1)
           Ib[i] += Im[mtemp->filindex];
         else
           Ib[i] -= Im[mtemp->filindex];
@@ -835,32 +828,32 @@ int realComputePsi(double **Prod, ssystem *sys, double **B, charge *chglist,
 #endif
       }
     }
-  
+
     /* do the final direct parts M*Vb = M*(L*Ib) = M*(L*Mt*Im) */
     sys->DirectEval = TRUE;
-    
+
     for (i = 1; i <= branches; i++)
       p[i] = 0;
-    for (chg = chglist; chg != NULL; chg = chg->next) 
+    for (chg = chglist; chg != NULL; chg = chg->next)
       /* fill the pseudo-charge vector */
       q[chg->index] = Ib[chg->fil->filnumber];
-    
+
     /* starttimer; */
     mulDirect(sys);
     mulEval(sys);
     /* stoptimer; */
     dirtime += dtime;
-    
+
     for (chg = chglist; chg != NULL; chg = chg->next) {
       /* add potential due to i direction */
       Vb[chg->fil->filnumber] += p[chg->index];
     }
-    
+
     /* do Vs = M * Vb */
     for (i = 0; i < size; i++) {
       Vs[i] = 0.0;
       for (mtemp = Mlist[i]; mtemp != NULL; mtemp = mtemp->mnext)
-        if (mtemp->sign == 1) 
+        if (mtemp->sign == 1)
           Vs[i] += Vb[mtemp->filindex];
         else
           Vs[i] -= Vb[mtemp->filindex];
@@ -974,7 +967,7 @@ int printRowCol(double **mat, int rowcol, int rownum, int colnum, int size)
 
   return(1);
 }
-  
+
 /* This computes the product M*L*Mt and stores it in imag(indsys->MtZM) */
 /*  It is just formMZMt() without the real part */
 void formMLMt(SYS *indsys)

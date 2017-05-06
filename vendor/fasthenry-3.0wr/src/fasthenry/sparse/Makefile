@@ -3,8 +3,8 @@
 #  Ken Kundert
 #  UC Berkeley
 #
-CFLAGS = -O
-LINTFLAGS = -lc -lm
+CFLAGS = -O $(CFLAGSADD)
+LINTFLAGS = -lc -lm $(LFLAGSADD)
 SHELL = /bin/sh
 #CC = cc
 

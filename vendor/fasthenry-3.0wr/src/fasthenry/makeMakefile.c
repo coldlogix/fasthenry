@@ -13,7 +13,7 @@ void get_root(char*, char*);
 void remove_returns(char*);
 
 
-int main(int argc, chr **argv)
+int main(int argc, char **argv)
 {
 
   char *line[2], name[1000], nameroot[1000];
@@ -72,10 +72,10 @@ char *getoneline(FILE *fp)
   char *retchar;
 
   do {
-    retchar = fgets(line, MAXLINE, fp); 
+    retchar = fgets(line, MAXLINE, fp);
   } while(retchar != NULL && !notblankline(line));
 
-  if (retchar != NULL && strlen(line) == MAXLINE - 1) 
+  if (retchar != NULL && strlen(line) == MAXLINE - 1)
     fprintf(stderr,"Warning: line may be too long:\n%s\n",line);
 
   if (retchar == NULL)

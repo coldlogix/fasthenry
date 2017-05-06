@@ -2,24 +2,11 @@
    # ***** */
 #include "mulGlobal.h"
 
-long memcount;	       	/* allocated memory counter */
-long memQ2M;			/* allocated memory counters by function */
-long memQ2L;
-long memQ2P;
-long memL2L;
-long memM2M;
-long memM2L;
-long memM2P;
-long memL2P;
-long memQ2PD;
-long memMSC;
-long memIND;
-
 #ifdef MATTDEBUG
 long membins[1001];
 #endif
 
-/* 
+/*
   global timer and operation count accumulators
 */
 double prectime;	       	/* time spent doing back solve for prec */

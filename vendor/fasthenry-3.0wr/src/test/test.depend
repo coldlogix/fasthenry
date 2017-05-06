@@ -1,0 +1,66 @@
+# depslib dependency file v1.0
+1404603589 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spAllocate.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+	<mpi.h>
+
+1403472095 /home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spConfig.h
+	<limits.h>
+	<float.h>
+
+1404602514 /home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spMatrix.h
+	"spConfig.h"
+	<stdio.h>
+
+1404537668 /home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spDefs.h
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1404165463 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spBuild.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+
+1403472095 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spCompat.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+
+1404430195 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spFactor.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+
+1403472095 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spFortran.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+
+1403472095 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spOutput.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+
+1404081981 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spSolve.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+
+1403472095 source:/home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/sparse/spUtils.c
+	"spConfig.h"
+	"spMatrix.h"
+	"spDefs.h"
+
+1404605580 source:/home/wao1tl/fasthenry-3.0wr_work/src/test/test.c
+	"../fasthenry/sparse/spMatrix.h"
+	<string.h>
+	<stdio.h>
+	<malloc.h>
+	<ctype.h>
+	"../fasthenry/cmplx.h"
+	<mpi.h>
+
+1403577837 /home/wao1tl/fasthenry-3.0wr_work/src/fasthenry/cmplx.h
+

@@ -1,7 +1,10 @@
 /* this file has some of the functions for mutual and self inductance
    calculation.  The rest are in joelself.c */
 
-#include "induct.h"
+#include "mutual.h"
+#include "dist_betw_fils.h"
+#include "joelself.h"
+#include "deg_mutual.h"
 
 /* these are missing in some math.h files */
 #ifdef NO_ATANH
@@ -17,15 +20,10 @@ int finite(double x) { return (1); }
 #endif
 
 /* SRW */
-double mutual(FILAMENT*, FILAMENT*);
 void print_infinity_warning(FILAMENT*, FILAMENT*);
 void findfourfils(FILAMENT*, FILAMENT*);
-double selfterm(FILAMENT*);
-double mutualfil(FILAMENT*, FILAMENT*);
 double magdiff2(FILAMENT*, int, FILAMENT*, int);
 double mut_rect(double, double);
-double dotprod(FILAMENT*, FILAMENT*);
-double fourfil(FILAMENT*, FILAMENT*);
 double parallel_fils(FILAMENT*, FILAMENT*, int, double*, double*, double);
 
 
@@ -55,10 +53,10 @@ double mutual(FILAMENT *fil_j, FILAMENT *fil_m)
   rj = MAX(fil_j->width, fil_j->height)/2.0;
   rm = MAX(fil_m->width, fil_m->height)/2.0;
 
-  if (MAX(rj,rm)*100 < dist) { 
+  if (MAX(rj,rm)*100 < dist) {
     /* fils are far apart */
        /* if (dist != 0.0 && MAX(rj,rm)/dist < 0.2) printf("1"); */
-       /* printf("\nmfil: %14.8le ", mutualfil(fil_j, fil_m)); */ 
+       /* printf("\nmfil: %14.8le ", mutualfil(fil_j, fil_m)); */
     num_mutualfil++;
 
     totalM = mutualfil(fil_j, fil_m);
@@ -89,7 +87,7 @@ double mutual(FILAMENT *fil_j, FILAMENT *fil_m)
     edge_par = parallel == 1
                  && edges_parallel(fil_j,fil_m,widj,&whperp);
     if (edge_par)
-      if (lookup(fil_j, fil_m, whperp, widj, heightj, 
+      if (lookup(fil_j, fil_m, whperp, widj, heightj,
 		 &totalM, dims, &dim_count, &lastptr,&num_dims)==1)
 	{
 	  num_found++;
@@ -97,7 +95,7 @@ double mutual(FILAMENT *fil_j, FILAMENT *fil_m)
 	}
     if (edge_par && 2*MAX(rj,rm)*10 > dist){
      /*(dist == 0.0 || MAX(rj,rm)/dist > 0.02*sqrt(MAX(aspect_j,aspect_m)))){*/
-      
+
       /* fils are close enough to use exact integrals  (6/94) */
       totalM = parallel_fils(fil_j, fil_m, whperp, widj, heightj, dist);
 
@@ -107,7 +105,7 @@ double mutual(FILAMENT *fil_j, FILAMENT *fil_m)
 
       if (!finite(totalM))
 	print_infinity_warning(fil_j, fil_m);
-      
+
       return totalM;
     }
     /* no longer: else if (aspect_j<cutoff&&aspect_m<cutoff || (rj+rm)<dist) */
@@ -115,25 +113,25 @@ double mutual(FILAMENT *fil_j, FILAMENT *fil_m)
       /* do 5 filament approximation to the filament */
 
       totalM = fourfil(fil_j, fil_m);
-      
+
       if (edge_par) put_in_table(fil_j, fil_m, whperp, totalM,
 				 dims, dim_count, lastptr, num_dims);
       /* printf("4fil: %14.8lg\n ", totalM); */
-      
+
       if (!finite(totalM))
 	print_infinity_warning(fil_j, fil_m);
-      
+
       return totalM;
     }
 #if 1==0
     /* gaussian quadrature.  exact expression used instead */
-    else { 
+    else {
       /* one of the fils has a high aspect ratio. Let's do 1-D Gaussian quad */
       nfilsj = MIN((int)aspect_j, MAXsubfils);
       nfilsm = MIN((int)aspect_m, MAXsubfils);
       findnfils(fil_j,subfilj, nfilsj);
       findnfils(fil_m,subfilm, nfilsm);
-      
+
       sum1 = 0;
       for(i = 0; i < nfilsj; i++) {
 	sum2 = 0;
@@ -192,7 +190,7 @@ void findfourfils(FILAMENT *fil, FILAMENT *subfils)
     wy = wy/mag;
     wz = wz/mag;
   }
-  
+
   hx = -wy*(fil->z[1] - fil->z[0]) + (fil->y[1] - fil->y[0])*wz;
   hy = -wz*(fil->x[1] - fil->x[0]) + (fil->z[1] - fil->z[0])*wx;
   hz = -wx*(fil->y[1] - fil->y[0]) + (fil->x[1] - fil->x[0])*wy;
@@ -203,21 +201,21 @@ void findfourfils(FILAMENT *fil, FILAMENT *subfils)
 
   /* all mutualfil needs are the filament coordinates and length */
   for (i = 0; i < 2; i++) {
-    subfils[0].x[i] = fil->x[i] + fil->width*wx/2; 
-    subfils[0].y[i] = fil->y[i] + fil->width*wy/2; 
-    subfils[0].z[i] = fil->z[i] + fil->width*wz/2; 
+    subfils[0].x[i] = fil->x[i] + fil->width*wx/2;
+    subfils[0].y[i] = fil->y[i] + fil->width*wy/2;
+    subfils[0].z[i] = fil->z[i] + fil->width*wz/2;
 
-    subfils[1].x[i] = fil->x[i] - fil->width*wx/2; 
-    subfils[1].y[i] = fil->y[i] - fil->width*wy/2; 
-    subfils[1].z[i] = fil->z[i] - fil->width*wz/2; 
+    subfils[1].x[i] = fil->x[i] - fil->width*wx/2;
+    subfils[1].y[i] = fil->y[i] - fil->width*wy/2;
+    subfils[1].z[i] = fil->z[i] - fil->width*wz/2;
 
-    subfils[2].x[i] = fil->x[i] + fil->height*hx/2; 
-    subfils[2].y[i] = fil->y[i] + fil->height*hy/2; 
-    subfils[2].z[i] = fil->z[i] + fil->height*hz/2; 
+    subfils[2].x[i] = fil->x[i] + fil->height*hx/2;
+    subfils[2].y[i] = fil->y[i] + fil->height*hy/2;
+    subfils[2].z[i] = fil->z[i] + fil->height*hz/2;
 
-    subfils[3].x[i] = fil->x[i] - fil->height*hx/2; 
-    subfils[3].y[i] = fil->y[i] - fil->height*hy/2; 
-    subfils[3].z[i] = fil->z[i] - fil->height*hz/2; 
+    subfils[3].x[i] = fil->x[i] - fil->height*hx/2;
+    subfils[3].y[i] = fil->y[i] - fil->height*hy/2;
+    subfils[3].z[i] = fil->z[i] - fil->height*hz/2;
   }
 
   for(i = 0; i < 4; i++)
@@ -235,8 +233,8 @@ double selfterm(FILAMENT *fil)
                *(log(2*fil->length/(K*(fil->width + fil->height))) - 1); */
    joelself = MU0*self(fil->width, fil->length, fil->height);
 /*   printf("Joel's function: %lg,  my approx: %lg\n",joelself, approx); */
-   
-   return joelself; 
+
+   return joelself;
 }
 
 /* calculates the mutual inductance between two filaments */
@@ -306,7 +304,7 @@ double mutualfil(FILAMENT *fil1, FILAMENT *fil2)
   if ( (fabs(R1) < EPS)||(fabs(R2) < EPS)||(fabs(R3) < EPS)||(fabs(R4) < EPS) )
     {
       if (fabs(R1) < EPS)  R = R3;
-      else if (fabs(R2) < EPS)  R = R4; 
+      else if (fabs(R2) < EPS)  R = R4;
       else if (fabs(R3) < EPS)  R = R1;
       else R = R2;
 
@@ -329,7 +327,7 @@ double mutualfil(FILAMENT *fil1, FILAMENT *fil2)
   if (fabs(realcos) < EPS)
     return 0.0;
 
-  if (fabs((realcos - cose)/cose) > 0.1) 
+  if (fabs((realcos - cose)/cose) > 0.1)
     if (realcos_error == 0) {
       fprintf(stderr, "Internal Warning: realcos = %lg,  cose = %lg\n",realcos, cose);
       fprintf(stderr,"  This may be due to two filaments that are separated \n\
@@ -353,7 +351,7 @@ by a distance 1e10 times their length\n");
     uz = fil1->z[1] - fil1->z[0];
     magu = sqrt(ux*ux + uy*uy + uz*uz);
     ux = ux/magu;    /* unit vector in direction of fil1 */
-    uy = uy/magu;    
+    uy = uy/magu;
     uz = uz/magu;
 
     dotp = ux*Rx + uy*Ry + uz*Rz;  /* component of R in direction of fil1 */
@@ -368,7 +366,7 @@ by a distance 1e10 times their length\n");
     /* its positive direction */
     x1_0 = 0;
     x1_1 = l;
-    
+
     /* x2_0 = dotprod( fil2.node0 - (fil1.node0 + d), u ) */
     /* (dotproduct just gives it correct sign) */
     vx =  (fil2->x[0] - ( fil1->x[0] + dx));
@@ -384,12 +382,12 @@ by a distance 1e10 times their length\n");
     x2_1 = vx*ux + vy*uy + vz*uz;
 
     if ( fabs( (sqrt(vx*vx + vy*vy + vz*vz) - fabs(x2_1))
-	      /(MAX(fabs(x2_0)+d,fabs(x2_1)+d))) 
+	      /(MAX(fabs(x2_0)+d,fabs(x2_1)+d)))
 	> EPS) {
       printf("uh oh, segs don't seem parallel %lg\n",(sqrt(vx*vx + vy*vy * vz*vz) - fabs(x2_1)));
     }
 
-    if ( fabs( (vtemp - fabs(x2_0))/(MAX(fabs(x2_0)+d,fabs(x2_1)+d))) 
+    if ( fabs( (vtemp - fabs(x2_0))/(MAX(fabs(x2_0)+d,fabs(x2_1)+d)))
 	> EPS) {
       printf("uh oh, segs don't seem parallel\n");
     }
@@ -427,7 +425,7 @@ by a distance 1e10 times their length\n");
 
     }  /* end collinear */
 
-    M = MUOVER4PI*(mut_rect(x2_1 - x1_1,d) - mut_rect(x2_1 - x1_0,d) 
+    M = MUOVER4PI*(mut_rect(x2_1 - x1_1,d) - mut_rect(x2_1 - x1_0,d)
 		 - mut_rect(x2_0 - x1_1,d) + mut_rect(x2_0 - x1_0,d) );
 
     return M;
@@ -459,7 +457,7 @@ by a distance 1e10 times their length\n");
   tmp2 = d*sine;
   tmp3 = sine*sine;
 
-  if (fabs(d) < EPS) 
+  if (fabs(d) < EPS)
     omega = 0.0;   /* d is zero, so it doesn't matter */
   else
     omega = atan2( (tmp1 + (u+l)*(v + m)*tmp3),(tmp2*R1))
@@ -467,7 +465,7 @@ by a distance 1e10 times their length\n");
 	   + atan2( (tmp1 + u*v*tmp3),(tmp2*R3))
 	   - atan2( (tmp1 + u*(v + m)*tmp3),(tmp2*R4) );
 
-  tmp4 =(  (u+l)*atanh( m/(R1 + R2)) 
+  tmp4 =(  (u+l)*atanh( m/(R1 + R2))
 	  +(v+m)*atanh( l/(R1 + R4))
 	  -    u*atanh( m/(R3 + R4))
 	  -    v*atanh( l/(R2 + R3))  );
@@ -524,7 +522,7 @@ double fourfil(FILAMENT *fil_j, FILAMENT *fil_m)
   FILAMENT subfilj[MAXsubfils], subfilm[MAXsubfils];
   double totalM;
   int i;
-  
+
   /* approximate 'filament' with width and length as a combination */
   /* of four filaments on the midpoints of the edges               */
   /* Known as the Rayleigh Quadrature formula. Grover p.11         */
@@ -536,9 +534,9 @@ double fourfil(FILAMENT *fil_j, FILAMENT *fil_m)
   for(i = 0; i < 4; i++)
     totalM += mutualfil(fil_m, &subfilj[i]);
   totalM += -2.0*mutualfil(fil_j, fil_m);
-  
+
   totalM = totalM/6.0;
-  
+
   /* printf("4: %14.8le ",totalM); */
   num_fourfil++;
 
@@ -550,7 +548,7 @@ double parallel_fils(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
 /* double *x_j, *y_j;  unit vectors in the fil coord sys */
 {
   enum degen_type deg_j, deg_m;
-  
+
   /* find degenerate dimensions */
   deg_j = find_deg_dims(fil_j);
   deg_m = find_deg_dims(fil_m);
@@ -563,7 +561,7 @@ double parallel_fils(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
 
     /* fprintf(stderr,"Nondegenerate: fil %d to fil %d: %13.6lg\n",
            fil_j->filnumber,
-	   fil_m->filnumber, 
+	   fil_m->filnumber,
 	   exact_mutual(fil_j, fil_m, whperp, x_j, y_j, deg_j, deg_m)); */
   }
   else {
@@ -573,7 +571,7 @@ double parallel_fils(FILAMENT *fil_j, FILAMENT *fil_m, int whperp,
 
     /* fprintf(stderr,"  degenerate: fil %d to fil %d: %13.6lg\n",
            fil_j->filnumber,
-	   fil_m->filnumber, 
+	   fil_m->filnumber,
 	    compute_for_degenerate(fil_j, fil_m, whperp, x_j, y_j,
 				  deg_j, deg_m, dist));
      */

@@ -1,26 +1,25 @@
 /* Calculates the minimum distance between two filaments */
 /* Among other things, like Gaussian Quadrature weights */
-#include "induct.h"
+#include "dist_betw_fils.h"
+
+#include "memmgmt.h"
 
 /* this is where the Gaussian Quadrature are defined */
 double **Gweight, **Gpoint;
 
 /* SRW */
-double dist_betw_fils(FILAMENT*, FILAMENT*, int*);
 void getD(FILAMENT*, double*);
 void getr(double*, double*, double*, double*, double, double*);
-double vdotp(double*, double*);
 double dist_between(double, double, double, double, double, double);
 double min_endpt_sep(FILAMENT*, FILAMENT*);
 double dist_betw_pt_and_fil(FILAMENT*, double*, double*, double, FILAMENT*,
     double);
 double aspectratio(FILAMENT*);
-void fill_Gquad(void);
 void findnfils(FILAMENT*, FILAMENT*, int);
 void gquad_weights(int, double*, double*);
 
 
-/* The line defined by fil1 is r = s1 + t1*D1 where s1 is the vector 
+/* The line defined by fil1 is r = s1 + t1*D1 where s1 is the vector
    (fil1->x[0], y[0], z[0]) and D1 is (x[1] - x[0], y[1] - y[0], z[1] - z[0]).
     t1 is a scalar from 0 to 1.  Similarly for fil2 */
 
@@ -31,7 +30,7 @@ double dist_betw_fils(FILAMENT *fil1, FILAMENT *fil2, int *parallel)
   double D1[3], D2[3], s1[3], s2[3], e[3], *D, t1, t2, s1ms2[3], s1me[3];
   double D1D1, D1D2, D2D2, D1s1s2, D2s1s2;
   double tmp1, tmp2;
-  
+
   s1[XX] = fil1->x[0];
   s1[YY] = fil1->y[0];
   s1[ZZ] = fil1->z[0];
@@ -79,12 +78,12 @@ double dist_betw_fils(FILAMENT *fil1, FILAMENT *fil2, int *parallel)
     if (t2 <= 1 && t2 >= 0) {
       /* nearest point along fil1 is outside line segment defining filament */
       return dist_betw_pt_and_fil(fil2, D2, s2, D2D2, fil1,t1);
-    }    
-    else 
+    }
+    else
       /* both point are out of range, just compare endpoints */
       return min_endpt_sep(fil1,fil2);
   }
-  
+
 }
 
 void getD(FILAMENT *fil, double *D)
@@ -183,9 +182,9 @@ double dist_betw_pt_and_fil(FILAMENT *fil_line, double *D, double *s,
   sme[XX] = s[XX] - e[XX];
   sme[YY] = s[YY] - e[YY];
   sme[ZZ] = s[ZZ] - e[ZZ];
-  
+
   Dsme = vdotp(D,sme);
-  
+
   tnew = -Dsme/DD;
 
   if (tnew <= 1 && tnew >= 0) {
@@ -201,7 +200,7 @@ double dist_betw_pt_and_fil(FILAMENT *fil_line, double *D, double *s,
     else
       idx = 1;
 
-    return dist_between(e[XX], e[YY], e[ZZ], 
+    return dist_between(e[XX], e[YY], e[ZZ],
 			fil_line->x[idx], fil_line->y[idx], fil_line->z[idx]);
   }
 }
@@ -223,7 +222,7 @@ void fill_Gquad(void)
 
   Gweight = (double **)MattAlloc(MAXsubfils+1, sizeof(double *));
   Gpoint = (double **)MattAlloc(MAXsubfils+1, sizeof(double *));
-  
+
   for(i = 1; i <= MAXsubfils; i++) {
     Gweight[i] = (double *)MattAlloc(i, sizeof(double));
     Gpoint[i] = (double *)MattAlloc(i, sizeof(double));
@@ -263,7 +262,7 @@ void findnfils(FILAMENT *fil, FILAMENT *subfils, int nfils)
     wy = wy/mag;
     wz = wz/mag;
   }
-  
+
   hx = -wy*(fil->z[1] - fil->z[0]) + (fil->y[1] - fil->y[0])*wz;
   hy = -wz*(fil->x[1] - fil->x[0]) + (fil->z[1] - fil->z[0])*wx;
   hz = -wx*(fil->y[1] - fil->y[0]) + (fil->x[1] - fil->x[0])*wy;
@@ -305,7 +304,7 @@ main()
     scanf("%lf %lf %lf", &(fil1.x[0]), &(fil1.y[0]), &(fil1.z[0]));
     printf("fil1 2: ");
     scanf("%lf %lf %lf", &(fil1.x[1]), &(fil1.y[1]), &(fil1.z[1]));
-    
+
     printf("fil2 1: ");
     scanf("%lf %lf %lf", &(fil2.x[0]), &(fil2.y[0]), &(fil2.z[0]));
     printf("fil2 2: ");
@@ -314,7 +313,7 @@ main()
     printf("dist = %lg\n",dist_betw_fils(&fil1, &fil2));
   }
 }
-#endif 
+#endif
 
 void gquad_weights(int N, double *p, double *w)
 {

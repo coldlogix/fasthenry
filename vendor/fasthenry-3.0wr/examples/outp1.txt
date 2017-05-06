@@ -1,0 +1,903 @@
+1 Sync indSYS
+Running FastHenry 3.0wr (29Sep96, mod 010114)
+  Date: Sat Jul  5 16:09:16 2014
+  Host: localhost.localdomain
+Solution technique: ITERATIVE
+Matrix vector product method: DIRECT
+Preconditioner: ON
+Error tolerance: 0.001
+Reading from file: sline1.inp
+Title:
+* #1 superconducting microstripline, low impedance
+
+all lengths multiplied by 1e-06 to convert to meters
+Total number of filaments before multipole refine: 100
+Level 3, 50% exact
+Preconditioner Cost Estimate: 3.56e+08,  Average Matrix: 281.261
+totalq: 800  #cubes: 16  Direct_Cost: 340000
+To be broken ratio: 1
+Total number of filaments after multipole refine: 800
+level 3, #mulexact 0, #locexact 0
+level 2, #mulexact 0, #locexact 0
+level 1, #mulexact 0, #locexact 0
+
+Multipole Summary
+  Expansion order: 2
+  Number of partitioning levels: 3
+  Total number of filaments: 800
+Time for Multipole Setup: 0.001
+Scanning graph to find fundamental circuits...
+Number of Groundplanes : 0 
+Number of filaments:        800
+Number of segments:          32
+Number of nodes:             36
+Number of meshes:           771
+          ----from tree:                   3 
+          ----from planes: (before holes)  0 
+Number of conductors:         1   (rows of matrix in Zc.mat) 
+Number of columns:            1   (columns of matrix in Zc.mat) 
+Number of real nodes:        31
+0 Sync indSYS
+0 Aloc global
+0 Filling M
+filling M...
+1 Aloc global
+1 Filling M
+Rank 0 Alloc MtZM 02c2ef40 771 16
+Time to Form M and Z: 0
+1 Open b.mat
+filling R and L...
+Time to Form M and Z: 0.249
+Total Memory allocated: 15015 kilobytes
+Memory used and freed by lookup table: 280576 kilobytes
+0 Open b.mat
+0 Exchange internals
+0 Exchange internals done 
+1 frequencies and up to 2 parallel instances
+Frequency = 1e+09
+Rank 0 PreMtZM
+multiplying M*(R + jL)*transpose(M)
+1 Exchange internals
+1 Exchange internals done 
+1 frequencies and up to 2 parallel instances
+Frequency = 1e+09
+Rank 1 PreMtZM
+Rank 1 Sync Precond num_mesh 771
+putting in frequency 
+Forming sparse matrix preconditioner..
+Actual PrecCost: 6.24333e+06, aver_mat:73.0744
+Number of nonzeros before factoring: 68601
+Number of fill-ins after factoring: 0
+Time spent on forming Precond: 0.249
+Rank 0 Sync Precond num_mesh 771
+Rank 0 Sync MtZM 0x02c2ef40 771 16
+Rank 1 Sync MtZM 0x00000000 771 16
+Rank 1 Sync MList 00000000
+Rank 0 Sync MList 026c00a0
+Rank 0 Sync Mtrans 026c18c0
+Rank 1 Sync Mtrans 00000000
+Rank 0 Sync sparMatrix
+0: Counting elements Matrix 0x035994b0
+0: MemTableEntries 2149 3523 kB
+Rank 1 Sync sparMatrix
+1: Counting elements Matrix 0x035994b0
+1: MemTableEntries 2149 
+0: MemTable generated (3523 kB)
+1: MemTable copied
+1: Memory allocated (3523 kB)
+0: MemTable linked content copied 
+Rank 0 Sync ssystem
+0: MemTableEntries 1096 Charges 800
+1: MemTable linked content copied 
+Rank 1 Sync ssystem
+1: MemTableEntries 1096 Charges 800
+0: MemTable copied
+1: MemTable copied
+1: Memory allocated (60 kB)
+0: MemTable linked content copied 
+0 Pnt 2 indsys->sparMatrix 035994b0
+0: Counting elements Matrix 0x035994b0
+0: 2149 elements
+1: MemTable linked content copied 
+1 Pnt 2 indsys->sparMatrix 032bcc10
+1: Counting elements Matrix 0x032bcc10
+1: 2149 elements
+0 Pnt 2.1 indsys->sparMatrix 035994b0
+Rank 0 PrecalcConductor
+Rank 0 CalcConductor 0
+conductor 0 from node n1
+Calling gmres...
+0 DirectMatVec 
+0 Pre MatVec
+1 Pnt 2.1 indsys->sparMatrix 032bcc10
+Rank 1 PrecalcConductor
+Rank 1 CalcConductor 0
+conductor 0 from node n1
+Calling gmres...
+1 DirectMatVec 
+1 Pre MatVec
+0 Pre sub_3
+Rank 0: zeta=1.73205 (initial rnorm)
+Rank 0: Pre scalar_mult
+Rank 0: Pre matvec II I
+1 Pre sub_3
+Rank 1: zeta=1.73205 (initial rnorm)
+Rank 1: Pre scalar_mult
+Rank 1: Pre matvec II I
+Rank 0: Post matvec II I
+Rank 0: Pre Calc I
+Rank 0: Pre Calc Solution
+Rank 0: Pre Calc Other
+Rank 0: 1 rnorm=0.0630523 real_part=0.990099 imag_part=0
+Rank 0: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 1 rnorm=0.346733 real_part=0 imag_part=1
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 2 rnorm=0.292767 real_part=0 imag_part=1
+Rank 1: Pre matvec II I
+Rank 0: Post matvec II I
+Rank 0: Pre Calc I
+Rank 0: Pre Calc Solution
+Rank 0: Pre Calc Other
+Rank 0: 2 rnorm=0.0125511 real_part=0.317172 imag_part=0
+Rank 0: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 3 rnorm=0.226695 real_part=0 imag_part=20.6769
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 4 rnorm=0.204768 real_part=0 imag_part=14.8716
+Rank 1: Pre matvec II I
+Rank 0: Post matvec II I
+Rank 0: Pre Calc I
+Rank 0: Pre Calc Solution
+Rank 0: Pre Calc Other
+Rank 0: 3 rnorm=0.00531163 real_part=0.0989229 imag_part=0
+Rank 0: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 5 rnorm=0.19332 real_part=0 imag_part=16.6199
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 6 rnorm=0.165322 real_part=0 imag_part=37.924
+Rank 1: Pre matvec II I
+Rank 0: Post matvec II I
+Rank 0: Pre Calc I
+Rank 0: Pre Calc Solution
+Rank 0: Pre Calc Other
+Rank 0: 4 rnorm=0.000499748 real_part=0.141773 imag_part=0
+Rank 0: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 7 rnorm=0.146073 real_part=0 imag_part=40.6445
+Rank 1: Pre matvec II I
+Rank 0: Post matvec II I
+Rank 0: Pre Calc I
+Rank 0: Pre Calc Solution
+Rank 0: Pre Calc Other
+Rank 0: 5 rnorm=6.03027e-05 real_part=0.00489675 imag_part=0
+Rank 0: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 8 rnorm=0.122711 real_part=0 imag_part=424.957
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 9 rnorm=0.109259 real_part=0 imag_part=13.868
+Rank 1: Pre matvec II I
+Rank 0: Post matvec II I
+Rank 0: Pre Calc I
+Rank 0: Pre Calc Solution
+Rank 0: Pre Calc Other
+Rank 0: 6 rnorm=1.52185e-05 real_part=0.00170445 imag_part=0
+Rank 0: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 10 rnorm=0.0991117 real_part=0 imag_part=100.276
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 11 rnorm=0.0930261 real_part=0 imag_part=20.8542
+Rank 1: Pre matvec II I
+Rank 0: Post matvec II I
+Rank 0: Pre Calc I
+Rank 0: Pre Calc Solution
+Rank 0: Pre Calc Other
+Rank 0: 7 rnorm=1.25225e-06 real_part=0.000327187 imag_part=0
+Total GMRES iters = 7
+0 Post gmres 
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 12 rnorm=0.0877959 real_part=0 imag_part=15.8093
+Rank 1: Pre matvec II I
+0 makegrids 
+0 extractYcol 
+Rank 0 PostcalcConductor
+Rank 0 Close DumpMats
+
+All impedance matrices dumped to file Zc.mat
+
+Calls to exact_mutual:            2670
+         fourfils:                4540
+         mutualfil:              52720
+Number found in table:          259670
+Number perpendicular:                0
+
+Times:  Read geometry   0
+        Multipole setup 0.001
+        Scanning graph  0
+        Form A M and Z  0.249
+        form M'ZM       0.029
+        Form precond    0.249
+        GMRES time      0.046
+   Total:               0.574
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 13 rnorm=0.084672 real_part=0 imag_part=49.8417
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 14 rnorm=0.0815331 real_part=0 imag_part=20.897
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 15 rnorm=0.0787423 real_part=0 imag_part=11.7366
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 16 rnorm=0.0753582 real_part=0 imag_part=52.7594
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 17 rnorm=0.0715544 real_part=0 imag_part=11.324
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 18 rnorm=0.067672 real_part=0 imag_part=2.67918
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 19 rnorm=0.0652437 real_part=0 imag_part=12.4932
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 20 rnorm=0.0636169 real_part=0 imag_part=1.8982
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 21 rnorm=0.0619255 real_part=0 imag_part=10.4509
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 22 rnorm=0.0599871 real_part=0 imag_part=27.0639
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 23 rnorm=0.0581738 real_part=0 imag_part=10.8795
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 24 rnorm=0.0568628 real_part=0 imag_part=1.66824
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 25 rnorm=0.0554794 real_part=0 imag_part=56.5809
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 26 rnorm=0.0544924 real_part=0 imag_part=47.4423
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 27 rnorm=0.0534335 real_part=0 imag_part=1.73059
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 28 rnorm=0.0518925 real_part=0 imag_part=0.765689
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 29 rnorm=0.0502911 real_part=0 imag_part=6.09875
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 30 rnorm=0.0486413 real_part=0 imag_part=24.2416
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 31 rnorm=0.0477086 real_part=0 imag_part=16.1122
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 32 rnorm=0.0471513 real_part=0 imag_part=1.54952
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 33 rnorm=0.04651 real_part=0 imag_part=4.37036
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 34 rnorm=0.0452903 real_part=0 imag_part=35.1046
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 35 rnorm=0.0438955 real_part=0 imag_part=3.2262
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 36 rnorm=0.0426709 real_part=0 imag_part=0.759193
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 37 rnorm=0.0416034 real_part=0 imag_part=2.22787
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 38 rnorm=0.0392689 real_part=0 imag_part=4.98759
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 39 rnorm=0.0373133 real_part=0 imag_part=80.6893
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 40 rnorm=0.035741 real_part=0 imag_part=66.0057
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 41 rnorm=0.0340186 real_part=0 imag_part=3.64491
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 42 rnorm=0.0328441 real_part=0 imag_part=1.60474
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 43 rnorm=0.0318513 real_part=0 imag_part=2.45384
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 44 rnorm=0.0306671 real_part=0 imag_part=0.798669
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 45 rnorm=0.0295137 real_part=0 imag_part=40.0054
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 46 rnorm=0.0283235 real_part=0 imag_part=1.04821
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 47 rnorm=0.0274383 real_part=0 imag_part=0.433962
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 48 rnorm=0.0260696 real_part=0 imag_part=0.371976
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 49 rnorm=0.0243312 real_part=0 imag_part=0.347433
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 50 rnorm=0.0222525 real_part=0 imag_part=0.289519
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 51 rnorm=0.0206814 real_part=0 imag_part=0.16143
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 52 rnorm=0.0201769 real_part=0 imag_part=0.0670154
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 53 rnorm=0.0195119 real_part=0 imag_part=0.086486
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 54 rnorm=0.0186705 real_part=0 imag_part=0.0749793
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 55 rnorm=0.0176977 real_part=0 imag_part=0.0764403
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 56 rnorm=0.0155137 real_part=0 imag_part=0.148946
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 57 rnorm=0.0143307 real_part=0 imag_part=0.0927694
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 58 rnorm=0.0128276 real_part=0 imag_part=0.161098
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 59 rnorm=0.0119108 real_part=0 imag_part=0.122484
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 60 rnorm=0.0109366 real_part=0 imag_part=0.115808
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 61 rnorm=0.0104784 real_part=0 imag_part=0.046648
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 62 rnorm=0.0101208 real_part=0 imag_part=0.024937
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 63 rnorm=0.00942081 real_part=0 imag_part=0.0510415
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 64 rnorm=0.00886031 real_part=0 imag_part=0.0367533
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 65 rnorm=0.0081779 real_part=0 imag_part=0.0452279
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 66 rnorm=0.00712429 real_part=0 imag_part=0.0989449
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 67 rnorm=0.00611615 real_part=0 imag_part=0.08024
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 68 rnorm=0.00526956 real_part=0 imag_part=0.0535435
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 69 rnorm=0.00482158 real_part=0 imag_part=0.0300672
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 70 rnorm=0.00429184 real_part=0 imag_part=0.0380298
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 71 rnorm=0.00390691 real_part=0 imag_part=0.0408993
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 72 rnorm=0.00375285 real_part=0 imag_part=0.0181194
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 73 rnorm=0.00355058 real_part=0 imag_part=0.0316575
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 74 rnorm=0.00337365 real_part=0 imag_part=0.0294917
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 75 rnorm=0.00315058 real_part=0 imag_part=0.040787
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 76 rnorm=0.00291868 real_part=0 imag_part=0.0499726
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 77 rnorm=0.0025725 real_part=0 imag_part=0.0847951
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 78 rnorm=0.0021374 real_part=0 imag_part=0.105579
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 79 rnorm=0.00186769 real_part=0 imag_part=0.0637237
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 80 rnorm=0.00166707 real_part=0 imag_part=0.0429415
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 81 rnorm=0.00147781 real_part=0 imag_part=0.0325233
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 82 rnorm=0.00139599 real_part=0 imag_part=0.0103938
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 83 rnorm=0.00133524 real_part=0 imag_part=0.0059364
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 84 rnorm=0.00129132 real_part=0 imag_part=0.00349009
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 85 rnorm=0.0012468 real_part=0 imag_part=0.00371114
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 86 rnorm=0.00118459 real_part=0 imag_part=0.00566429
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 87 rnorm=0.00110403 real_part=0 imag_part=0.00693598
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 88 rnorm=0.000944326 real_part=0 imag_part=0.0129984
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 89 rnorm=0.000785533 real_part=0 imag_part=0.0122815
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 90 rnorm=0.000681995 real_part=0 imag_part=0.0105464
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 91 rnorm=0.000643042 real_part=0 imag_part=0.0025097
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 92 rnorm=0.000607043 real_part=0 imag_part=0.0046995
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 93 rnorm=0.000571388 real_part=0 imag_part=0.00848236
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 94 rnorm=0.000527758 real_part=0 imag_part=0.014136
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 95 rnorm=0.000458441 real_part=0 imag_part=0.0222144
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 96 rnorm=0.000372672 real_part=0 imag_part=0.0213894
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 97 rnorm=0.000320815 real_part=0 imag_part=0.0102233
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 98 rnorm=0.000290242 real_part=0 imag_part=0.00485424
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 99 rnorm=0.000259473 real_part=0 imag_part=0.00399669
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 100 rnorm=0.000238957 real_part=0 imag_part=0.00255544
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 101 rnorm=0.000227023 real_part=0 imag_part=0.00172067
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 102 rnorm=0.000211814 real_part=0 imag_part=0.00233771
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 103 rnorm=0.000187157 real_part=0 imag_part=0.00397601
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 104 rnorm=0.000149084 real_part=0 imag_part=0.00571512
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 105 rnorm=0.000129098 real_part=0 imag_part=0.00266046
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 106 rnorm=0.000110188 real_part=0 imag_part=0.00248027
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 107 rnorm=0.000100875 real_part=0 imag_part=0.00163363
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 108 rnorm=9.38201e-05 real_part=0 imag_part=0.00151043
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 109 rnorm=8.72216e-05 real_part=0 imag_part=0.00187273
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 110 rnorm=8.21604e-05 real_part=0 imag_part=0.00180578
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 111 rnorm=7.38383e-05 real_part=0 imag_part=0.00318866
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 112 rnorm=6.61502e-05 real_part=0 imag_part=0.00329093
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 113 rnorm=5.86158e-05 real_part=0 imag_part=0.00311012
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 114 rnorm=4.75644e-05 real_part=0 imag_part=0.00401839
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 115 rnorm=3.60079e-05 real_part=0 imag_part=0.00319701
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 116 rnorm=2.54934e-05 real_part=0 imag_part=0.00216476
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 117 rnorm=1.72858e-05 real_part=0 imag_part=0.00116923
+Rank 1: Pre matvec II I
+Rank 1: Post matvec II I
+Rank 1: Pre Calc I
+Rank 1: Pre Calc Solution
+Rank 1: Pre Calc Other
+Rank 1: 118 rnorm=1.31666e-05 real_part=0 imag_part=0.000475564
+Total GMRES iters = 118
+1 Post gmres 
+1 makegrids 
+1 extractYcol 
+Rank 1 PostcalcConductor
+Rank 1 Close DumpMats

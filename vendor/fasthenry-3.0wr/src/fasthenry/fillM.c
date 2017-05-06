@@ -1,24 +1,22 @@
 /* this is the new fillM    10/92 */
 
 #include <string.h>
-#include "induct.h"
+#include "fillM.h"
+#include "addgroundplane.h"
 #include "gp.h"
+#include "findpaths.h"
+#include "readGeom.h"
+#include "memmgmt.h"
 
 /* SRW */
-void fillM(SYS*);
 MELEMENT *make_mesh_from_path(SPATH*, int, SYS*);
 int is_next_seg_in_gp(SPATH*, NODES*);
-MELEMENT *insert_in_list(MELEMENT*, MELEMENT*);
 NODES *getnode(int, seg_ptr);
 void bad_seg_type(char*, seg_ptr);
-MELEMENT *make_melement(int, FILAMENT*, int);
 void add_to_external(PSEUDO_SEG*, int, int, SYS*);
-int_list *make_int_list(int, int);
+int_list *make_int_list(SYS*, int, int);
 int_list *add_to_int_list(int_list*, int_list*);
-int makeMlist(GROUNDPLANE*, MELEMENT**, Minfo*, int);
-void fill_b(EXTERNAL*, CX*);
-void extractYcol(CX**, CX*, EXTERNAL*, EXTERNAL*);
-char *get_a_name(PSEUDO_SEG*);
+int makeMlist(SYS*, GROUNDPLANE*, MELEMENT**, Minfo*, int);
 NODES *find_first_node(SPATH*);
 void makegrids(SYS*, CX*, int, int);
 
@@ -27,7 +25,7 @@ void makegrids(SYS*, CX*, int, int);
 /* it maps a matrix of mesh currents to branch currents */
 /* it might actually be what some think of as the transpose of M */
 /* Here, M*Im = Ib  where Im are the mesh currents, and Ib the branch */
-/* 6/92 I added Mlist which is a vector of linked lists to meshes. 
+/* 6/92 I added Mlist which is a vector of linked lists to meshes.
    This replaces M.  But I keep M around for checking things in matlab. */
 
 /* much of what is commented out is obsolete stuff from an old idea
@@ -49,7 +47,7 @@ void fillM(SYS *indsys)
   Mlist = indsys->Mlist;
   m_info = indsys->m_info;
   mesh = 0;
-  
+
   /* do all the loops due circuits in the graph */
   for(atree = indsys->trees; atree != NULL; atree = atree->next)
     for(aplist = atree->loops; aplist != NULL; aplist = aplist->next) {
@@ -61,7 +59,7 @@ void fillM(SYS *indsys)
 
      /* unimplemented junk
       make_unconstrained(&(m_info[mesh]), mesh);
-      mesh += make_many_meshes_from_path(aplist->path, Mlist, m_info, mesh, 
+      mesh += make_many_meshes_from_path(aplist->path, Mlist, m_info, mesh,
 					 indsys);
      */
     }
@@ -78,10 +76,10 @@ void fillM(SYS *indsys)
   for(seg = indsys->segment; seg != NULL; seg = seg->next) {
     for(k = 1; k < seg->num_fils; k++, mesh++) {
 
-        Mlist[mesh] = make_melement(seg->filaments[k-1].filnumber,
+        Mlist[mesh] = make_melement(indsys, seg->filaments[k-1].filnumber,
 				    &seg->filaments[k-1], 1);
 
-	Mlist[mesh] = insert_in_list(make_melement(seg->filaments[k].filnumber,
+	Mlist[mesh] = insert_in_list(indsys, make_melement(indsys,seg->filaments[k].filnumber,
 						   &seg->filaments[k], -1),
 				     Mlist[mesh]);
        /* unimplemented junk
@@ -93,24 +91,61 @@ void fillM(SYS *indsys)
   /* add all the lists to the groundplane */
   for(plane = indsys->planes; plane != NULL; plane = plane->next) {
     if (!is_nonuni_gp(plane))
-      mesh += makeMlist(plane, &(Mlist[mesh]), &(m_info[mesh]),mesh);
+      mesh += makeMlist(indsys, plane, &(Mlist[mesh]), &(m_info[mesh]),mesh);
     else
-      mesh += make_nonuni_Mlist(plane, &(Mlist[mesh]));
+      mesh += make_nonuni_Mlist(indsys, plane, &(Mlist[mesh]));
   }
 
 
-  /* For each tree mesh, pick one mini-mesh to be unconstrained and make it 
+  /* For each tree mesh, pick one mini-mesh to be unconstrained and make it
      unique (unimplemented)*/
   /*pick_unconstrained(Mlist, m_info, mesh, indsys->tree_meshes, minimeshes);*/
 
 
-  if (mesh <= indsys->num_mesh) 
+  if (mesh <= indsys->num_mesh)
     indsys->num_mesh = mesh;
   else {
     fprintf(stderr, "uh oh, mesh > num_mesh\n");
-    exit(1); 
+    exit(1);
   }
 }
+
+#ifdef SRW0814
+/* SRW
+ * A sort function for the MELEMENT list.  For long lists, it is much
+ * faster to bulk sort than to keep the list ordered during insertion.
+ */
+
+static int mcmp(const void *a, const void *b)
+{
+    MELEMENT *m1 = *(MELEMENT**)a;
+    MELEMENT *m2 = *(MELEMENT**)b;
+    return (m1->filindex - m2->filindex);
+}
+
+MELEMENT *msort(MELEMENT *m0)
+{
+    int i, cnt = 0;
+    MELEMENT **ary, *m;
+    if (!m0 || !m0->mnext)
+        return (m0);
+    for (m = m0; m; m = m->mnext)
+        cnt++;
+    ary = (MELEMENT**)malloc(cnt*sizeof(MELEMENT*));
+    cnt = 0;
+    for (m = m0; m; m = m->mnext)
+        ary[cnt++] = m;
+    qsort(ary, cnt, sizeof(MELEMENT*), mcmp);
+    cnt--;
+    for (i = 0; i < cnt; i++)
+        ary[i]->mnext = ary[i+1];
+    ary[cnt]->mnext = 0;
+    m = ary[0];
+    free(ary);
+    return (m);
+}
+
+#endif
 
 /* this takes a linked list of segments (path) and makes a row of the */
 /* mesh matrix out of the filament[0]'s of each segment.  */
@@ -140,9 +175,14 @@ MELEMENT *make_mesh_from_path(SPATH *path, int mesh, SYS *indsys)
     if (selem->seg.type == NORMAL) {
       seg = (SEGMENT *)selem->seg.segp;
 
-      m1 = make_melement(seg->filaments[0].filnumber, &seg->filaments[0],
+      m1 = make_melement(indsys,seg->filaments[0].filnumber, &seg->filaments[0],
 			 sign);
-      mlist = insert_in_list(m1, mlist);
+#ifdef SRW0814
+      m1->mnext = mlist;
+      mlist = m1;
+#else
+      mlist = insert_in_list(indsys,m1, mlist);
+#endif // SRW0814
     }
     else if (selem->seg.type == PSEUDO) {
       pseg = (PSEUDO_SEG *)selem->seg.segp;
@@ -168,14 +208,15 @@ MELEMENT *make_mesh_from_path(SPATH *path, int mesh, SYS *indsys)
 		   node0->gp->name, mesh);
 	}
 	if (sign == 1) {
-	  temppath = path_through_gp(node0, node1, node0->gp);
+	  temppath = path_through_gp(indsys,node0, node1, node0->gp);
 	  plus2 = node0;
 	}
 	else {
-	  temppath = path_through_gp(node1, node0, node0->gp);
+	  temppath = path_through_gp(indsys,node1, node0, node0->gp);
 	  plus2 = node1;
 	}
-	while(temppath != NULL) {
+	while(temppath != NULL)
+	{
 	  telem = temppath;
 	  seg = (SEGMENT *)telem->seg.segp;
 	  if (is_nonuni_gp(node0->gp)) {
@@ -194,7 +235,7 @@ MELEMENT *make_mesh_from_path(SPATH *path, int mesh, SYS *indsys)
 	    }
 	  }
 	  else {
-	    if (plus2 == seg->node[0]) 
+	    if (plus2 == seg->node[0])
 	      sign2 = 1;
 	    else if (plus2 == seg->node[1])
 	      sign2 = -1;
@@ -204,11 +245,23 @@ MELEMENT *make_mesh_from_path(SPATH *path, int mesh, SYS *indsys)
 	   }
 	    actualnode = plus2;
 	  }
-	  m1 = make_melement(seg->filaments[0].filnumber, &seg->filaments[0],
+	  m1 = make_melement(indsys, seg->filaments[0].filnumber, &seg->filaments[0],
 			     sign2);
-	  mlist = insert_in_list(m1, mlist);
+#ifdef SRW0814
+	  m1->mnext = mlist;
+	  mlist = m1;
+#else
+	  mlist = insert_in_list(indsys, m1, mlist);
+#endif // SRW0814
 	  plus2 = getothernode(actualnode, telem->seg);
-	  temppath = temppath->next;
+
+	  {
+	    SPATH *tt;
+	    tt=temppath;
+     	temppath = temppath->next;
+        sysFree(indsys, tt);
+	  }
+
 /*	  free(telem); */
 	}
       }
@@ -224,16 +277,20 @@ MELEMENT *make_mesh_from_path(SPATH *path, int mesh, SYS *indsys)
     plusnode = getothernode(plusnode, selem->seg);
   }
 
+#ifdef SRW0814
+  mlist = msort(mlist);
+#endif
+
   if (mlist == NULL) {
-    fprintf(stderr, 
+    fprintf(stderr,
             "make_mesh_from_path: Possible loop of .external statements which is not allowed!\n");
-    fprintf(stderr, 
+    fprintf(stderr,
             " .external's (possibly equiv'ed nodes) which may make a loop:\n");
     for(selem = path, i = 0; selem != NULL; selem = selem->next, i++) {
       node0 = getnode(0, selem->seg);  /* get original (not real) nodes */
       node1 = getnode(1, selem->seg);
       fprintf(stderr, "  %s  %s\n",node0->name, node1->name);
-      /* the above could be made more useful by searching through 
+      /* the above could be made more useful by searching through
 	 the master pseudo_nodes list for pseudo_nodes thatpoint to these */
     }
   }
@@ -244,13 +301,13 @@ MELEMENT *make_mesh_from_path(SPATH *path, int mesh, SYS *indsys)
 /* Check to see if the next segment is also from the same groundplane */
 int is_next_seg_in_gp(SPATH *selem, NODES *plusnode)
 {
-  PSEUDO_SEG *pseg2, *pseg1;  
+  PSEUDO_SEG *pseg2, *pseg1;
   NODES *othernode;
 
   if (selem->next != NULL && selem->next->seg.type == PSEUDO) {
     pseg1 = (PSEUDO_SEG *)selem->seg.segp;
     pseg2 = (PSEUDO_SEG *)selem->next->seg.segp;
-    if (pseg2->type == GPTYPE 
+    if (pseg2->type == GPTYPE
 	&& pseg1->node[0]->gp == pseg2->node[0]->gp) {
       othernode = getothernode(plusnode, selem->seg);
       if (othernode == pseg2->node[0] || othernode == pseg2->node[1])
@@ -270,7 +327,7 @@ int is_next_seg_in_gp(SPATH *selem, NODES *plusnode)
 
 /* this inserts melem into the linked list beginning with bigmhead. */
 /* It inserts it to preserve increasing filindex order. */
-MELEMENT *insert_in_list(MELEMENT *melem, MELEMENT *bigmhead)
+MELEMENT *insert_in_list(SYS* indsys, MELEMENT *melem, MELEMENT *bigmhead)
 {
   MELEMENT *melem2;
 
@@ -284,7 +341,7 @@ MELEMENT *insert_in_list(MELEMENT *melem, MELEMENT *bigmhead)
       bigmhead = melem;
     }
     else {  /* find its place in the middle of the list */
-      while(melem2->mnext != NULL 
+      while(melem2->mnext != NULL
 	    && melem2->mnext->filindex < melem->filindex)
 	melem2 = melem2->mnext;
       /* insert it in the middle */
@@ -302,7 +359,7 @@ NODES *getnode(int number, seg_ptr seg)
     return ((SEGMENT *)seg.segp)->node[number];
   else if (seg.type == PSEUDO)
     return ((PSEUDO_SEG *)seg.segp)->node[number];
-  else 
+  else
     bad_seg_type("getnode", seg);
   return ((NODES*)NULL);
 }
@@ -313,11 +370,12 @@ void bad_seg_type(char *name, seg_ptr seg)
   exit(1);
 }
 
-MELEMENT *make_melement(int filindex, FILAMENT *fil, int sign)
+MELEMENT *make_melement(SYS* indsys,int filindex, FILAMENT *fil, int sign)
 {
   MELEMENT *melem;
 
-  melem = (MELEMENT *)MattAlloc(1, sizeof(MELEMENT));
+  melem=NULL;
+  sysALLOC(melem,1,MELEMENT,ON,IND,indsys,sysAllocTypeMElement);
   melem->filindex = filindex;
   melem->fil = fil;
   melem->sign = sign;
@@ -335,26 +393,28 @@ void add_to_external(PSEUDO_SEG *pseg, int mesh, int sign, SYS *indsys)
   int realsign;
 
   port = indsys->externals;
-  while(port != NULL && port->source != pseg) 
+  while(port != NULL && port->source != pseg)
     port = port->next;
 
   if (port == NULL) {
     fprintf(stderr, "Hey, supposed external segment isn't in list\n");
     exit(1);
   }
-  
+
   realsign = -1 * sign;  /* since this will be moved to RHS, change its sign */
 
-  port->indices = add_to_int_list(make_int_list(mesh, realsign), 
+  port->indices = add_to_int_list(make_int_list(indsys, mesh, realsign),
 				  port->indices);
-    
+
 }
 
-int_list *make_int_list(int mesh, int sign)
+int_list *make_int_list(SYS* indsys,int mesh, int sign)
 {
   int_list *elem;
 
-  elem = (int_list *)Gmalloc(sizeof(int_list));
+  elem=0;
+  sysALLOC(elem,1,int_list,ON,IND,indsys,sysAllocTypeInd_list);
+
   elem->index = mesh;
   elem->sign = sign;
   elem->next = NULL;
@@ -370,7 +430,7 @@ int_list *add_to_int_list(int_list *int_elem, int_list *list)
 
 /* makes the Mlist for the groundplane given a plane and parameters defining */
 /* the current location of the overall Mlist.                                */
-int makeMlist(GROUNDPLANE *plane, MELEMENT **pMlist, Minfo *pm_info,
+int makeMlist(SYS* indsys, GROUNDPLANE *plane, MELEMENT **pMlist, Minfo *pm_info,
     int mstart)
 {
   MELEMENT *melem;
@@ -386,10 +446,10 @@ int makeMlist(GROUNDPLANE *plane, MELEMENT **pMlist, Minfo *pm_info,
   for(i = 0; i < plane->seg2; i++){
     for(j = 0; j < plane->seg1; j++){
 
-      if (segs1[j][i] != NULL && segs2[j + 1][i] != NULL 
+      if (segs1[j][i] != NULL && segs2[j + 1][i] != NULL
 	  && segs1[j][i + 1] != NULL && segs2[j][i]!= NULL) {
 	pMlist[counter] = NULL;
-	
+
 	for(k = 0; k < 4; k++){
 	  switch (k) {
 	  case 0:
@@ -409,11 +469,11 @@ int makeMlist(GROUNDPLANE *plane, MELEMENT **pMlist, Minfo *pm_info,
 	    signofelem = 1.0;
 	    break;
 	  }
-	  
-	  melem = make_melement(seg->filaments[0].filnumber, &seg->filaments[0],
+
+	  melem = make_melement(indsys,seg->filaments[0].filnumber, &seg->filaments[0],
 				signofelem);
-	  pMlist[counter] = insert_in_list(melem, pMlist[counter]);
-	  
+	  pMlist[counter] = insert_in_list(indsys, melem, pMlist[counter]);
+
 	}
       /* unimplemented junk
 	make_unconstrained(&(pm_info[counter]), mstart+counter);
@@ -447,24 +507,43 @@ void extractYcol(CX **mat, CX *x0, EXTERNAL *extcol, EXTERNAL *ext_list)
 
   CX sum, tmp;
 
-  for(ext = ext_list; ext != NULL; ext = ext->next) {
+  for(ext = ext_list; ext != NULL; ext = ext->next)
+  {
     sum = CXZERO;
     /* for each mesh that contains this voltage source */
-    for(elem = ext->indices; elem != NULL; elem = elem->next) {
+    for(elem = ext->indices; elem != NULL; elem = elem->next)
+    {
       cx_scalar_mult(tmp, elem->sign, x0[elem->index]);
       cx_add(sum, sum, tmp);
     }
     mat[ext->Yindex][extcol->col_Yindex] = sum;
   }
-  
+
 }
 
 char *get_a_name(PSEUDO_SEG *pseg)
 {
+  const char txt[2] ="";
+  char* ptr;
+
+  ptr=(char*)txt;
+
+  if (pseg==NULL)
+  {
+    return ptr;
+  }
+  if (pseg->node[0]==NULL)
+  {
+    return ptr;
+  }
+  if (pseg->node[0]->name==NULL)
+  {
+     return ptr;
+  }
   return pseg->node[0]->name;
 }
 
-/* we wish to find the first node in a path which is the node of 
+/* we wish to find the first node in a path which is the node of
    the first segment which is not connected to the second segment */
 NODES *find_first_node(SPATH *path)
 {
@@ -483,11 +562,11 @@ NODES *find_first_node(SPATH *path)
  replaced for the sake of fixing extra long gp meshes, we must
  handle a two segment loop more carefully /*
 
-  if (getrealnode(node0) == getrealnode(getnode(0, path->next->seg)) 
+  if (getrealnode(node0) == getrealnode(getnode(0, path->next->seg))
       || getrealnode(node0) == getrealnode(getnode(1, path->next->seg)) )
     /* node0 is connected to the next segment, so start with node 1 */
     return node1;
-  else if (getrealnode(node1) == getrealnode(getnode(0, path->next->seg)) 
+  else if (getrealnode(node1) == getrealnode(getnode(0, path->next->seg))
       || getrealnode(node1) == getrealnode(getnode(1, path->next->seg)) )
     /* node0 is connected to the next segment, so start with node 1 */
     return node0;
@@ -498,12 +577,12 @@ NODES *find_first_node(SPATH *path)
 #endif
 
   /* is node0 connected to the next segment? */
-  node0_in_middle = 
-    (getrealnode(node0) == getrealnode(getnode(0, path->next->seg)) 
+  node0_in_middle =
+    (getrealnode(node0) == getrealnode(getnode(0, path->next->seg))
       || getrealnode(node0) == getrealnode(getnode(1, path->next->seg)) );
 
   node1_in_middle =
-    (getrealnode(node1) == getrealnode(getnode(0, path->next->seg)) 
+    (getrealnode(node1) == getrealnode(getnode(0, path->next->seg))
       || getrealnode(node1) == getrealnode(getnode(1, path->next->seg)) );
 
   /* return the node that isn't connecting the first and second segs */
@@ -513,14 +592,14 @@ NODES *find_first_node(SPATH *path)
     return node1;
   else if (node0_in_middle && node1_in_middle) {
     /* this is a two segment loop, so it doesn't matter which
-       we return.  But if these are two groundplane segments, perhaps 
+       we return.  But if these are two groundplane segments, perhaps
        this needs to be shortened to one segment and in order to do so
        we must determine the connectivity based on original, not real, node
        name */
-    if (node0 == getnode(0, path->next->seg) 
+    if (node0 == getnode(0, path->next->seg)
         || node0 == getnode(1, path->next->seg))
       return node1;
-    else if (node1 == getnode(0, path->next->seg) 
+    else if (node1 == getnode(0, path->next->seg)
         || node1 == getnode(1, path->next->seg))
       return node0;
     else
@@ -545,7 +624,7 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
   MELEMENT *mtemp;
   GROUNDPLANE *p;
   FILE *fp, *fpreal, *fpimag, *fpmag;
-  static char *fname, *tempstr;
+  static char *fname=0, *tempstr=0;
   SEGMENT *seg;
   FILAMENT *fil;
   double xv, yv, zv,x,y,z, magcur;
@@ -553,7 +632,8 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
   fils = indsys->num_fils;
   meshes = indsys->num_mesh;
 
-  if (Ib == NULL) {
+  if (Ib == NULL)
+  {
      Ib = (CX *)MattAlloc(fils, sizeof(CX));
      fname = malloc(100*sizeof(char));
      tempstr = malloc(100*sizeof(char));
@@ -563,7 +643,7 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
   for(i = 0; i < fils; i++) {
     Ib[i] = CXZERO;
     for(mtemp = indsys->Mtrans[i]; mtemp != NULL; mtemp = mtemp->mnext) {
-      if (mtemp->sign == 1) 
+      if (mtemp->sign == 1)
 	cx_add(Ib[i], Ib[i], Im[mtemp->filindex]);
       else
 	cx_sub(Ib[i], Ib[i], Im[mtemp->filindex]);
@@ -571,8 +651,8 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
   }
 
   printf("saving to Jreal%s.mat, Jimag%s.mat, Jmag%s.mat\n",
-	 indsys->opts->suffix, 
-	 indsys->opts->suffix, 
+	 indsys->opts->suffix,
+	 indsys->opts->suffix,
 	 indsys->opts->suffix);
 
   sprintf(fname, "Jreal%s.mat",indsys->opts->suffix);
@@ -583,7 +663,7 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
     exit(1);
   }
 /*  fprintf(fpreal, "$ DATA=VECTOR\n");*/
-  
+
   sprintf(fname, "Jimag%s.mat",indsys->opts->suffix);
   /* SRW -- this is ascii data */
   fpimag = fopen(fname,"w");
@@ -592,7 +672,7 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
     exit(1);
   }
 /*  fprintf(fpimag, "$ DATA=VECTOR\n");*/
-  
+
   sprintf(fname, "Jmag%s.mat",indsys->opts->suffix);
   /* SRW -- this is ascii data */
   fpmag = fopen(fname,"w");
@@ -613,18 +693,18 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
       x = fil->x[0];
       y = fil->y[0];
       z = fil->z[0];
-      fprintf(fpreal, "%lg %lg %lg  %lg %lg %lg\n",x,y,z, 
+      fprintf(fpreal, "%lg %lg %lg  %lg %lg %lg\n",x,y,z,
 	      xv*current.real, yv*current.real, zv*current.real);
-      fprintf(fpimag, "%lg %lg %lg  %lg %lg %lg\n",x,y,z, 
+      fprintf(fpimag, "%lg %lg %lg  %lg %lg %lg\n",x,y,z,
 	      xv*current.imag, yv*current.imag, zv*current.imag);
-      fprintf(fpmag, "%lg %lg %lg  %lg %lg %lg\n",x,y,z, 
+      fprintf(fpmag, "%lg %lg %lg  %lg %lg %lg\n",x,y,z,
 	      xv*magcur, yv*magcur, zv*magcur);
     }
 
   fclose(fpreal);
   fclose(fpimag);
   fclose(fpmag);
-    
+
   if (indsys->num_planes == 0)
     return;
 
@@ -638,21 +718,23 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
     printf("couldn't open file %s\n",fname);
     exit(1);
   }
-  
-  for(num = 0, p = indsys->planes; p != NULL; p = p->next, num++){
-    if (is_nonuni_gp(p)) 
+
+  for(num = 0, p = indsys->planes; p != NULL; p = p->next, num++)
+  {
+    if (is_nonuni_gp(p))
       dump_nonuni_plane_currents(p->nonuni, Ib, fp);
     else {
       dir1 = p->seg1 + 1;
       dir2 = p->seg2 + 1;
-    
-      if (dir1 > maxdir1 || dir2 > maxdir2) {
-	out1 = (CX **)MatrixAlloc(dir2 + 10, dir1 + 10, sizeof(CX));
-	out2 = (CX **)MatrixAlloc(dir2 + 10, dir1 + 10, sizeof(CX));
-	maxdir1 = dir1 + 10;
-	maxdir2 = dir2 + 10;
+
+      if (dir1 > maxdir1 || dir2 > maxdir2)
+      {
+     	out1 = (CX **)sysMatrixAlloc(indsys,dir2 + 10, dir1 + 10, sizeof(CX));
+    	out2 = (CX **)sysMatrixAlloc(indsys,dir2 + 10, dir1 + 10, sizeof(CX));
+	    maxdir1 = dir1 + 10;
+	    maxdir2 = dir2 + 10;
       }
-    
+
       for(i = 0; i < dir2; i++)
 	for(j = 0; j < dir1; j++) {
 	  /* do direction 1 */
@@ -662,7 +744,7 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
 	      printf("You goofed 1\n");
 	    }
 	  }
-	  else 
+	  else
 	    out1[i][j] = CXZERO;
 
 	  /* do direction 2 */
@@ -675,19 +757,19 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
 	  else
 	    out2[i][j] = CXZERO;
 	}
-    
+
       printf("saving grid1%s...\n",p->name);
       strcpy(fname, "grid1");
       sprintf(tempstr, "%s",p->name);
       strcat(fname, tempstr);
-      
+
       savecmplx(fp, fname, out1, dir2, dir1);
-      
+
       printf("saving grid2%s...\n",p->name);
       strcpy(fname, "grid2");
       sprintf(tempstr, "%s",p->name);
       strcat(fname,tempstr);
-    
+
       savecmplx(fp, fname, out2, dir2, dir1);
     }
   }
@@ -700,7 +782,7 @@ void makegrids(SYS *indsys, CX *Im, int column, int freq_num)
 #if 1==0
 
 The following is code that was not implemented and never used and is now
-  obsolete. 
+  obsolete.
 
 /* this takes a linked list of segments (path) and makes many rows of the */
 /* mesh matrix out of the filament[0]'s of each segment.  */
@@ -739,16 +821,16 @@ void make_many_meshes_from_path(SPATH *path, MELEMENT **Mlist, Minfo *m_info,
     }
 
     if (selem->seg.type == NORMAL) {
-      physically_connected = seg_count != 0 && (sign==1 && plusnode == node0 
+      physically_connected = seg_count != 0 && (sign==1 && plusnode == node0
 	                     || sign==-1 && plusnode==node1);
       if (physically_connected) {
-	minipath = add_seg_to_list(selem->seg, minipath);
+	minipath = add_seg_to_list(indsys,selem->seg, minipath);
 	seg_count++;
       }
       if (!physically_connected || seg_count == FILS_PER_MESH) {
-	Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh, 
+	Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh,
 						   indsys);
-	mesh++; 
+	mesh++;
 	reset_vars(&seg_count, &minipath);
       }
     }
@@ -764,7 +846,7 @@ void make_many_meshes_from_path(SPATH *path, MELEMENT **Mlist, Minfo *m_info,
       else if (pseg->type == GPTYPE) {
 	/* flush any mesh which isn't finished yet */
 	if (seg_count != 0) {
-	  Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh, 
+	  Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh,
 						     indsys);
 	  mesh++;
 	  reset_vars(&seg_count, &minipath);
@@ -786,17 +868,17 @@ void make_many_meshes_from_path(SPATH *path, MELEMENT **Mlist, Minfo *m_info,
 		   node0->gp->name, mesh);
 	}
 	if (sign == 1) {
-	  temppath = path_through_gp(node0, node1, node0->gp);
+	  temppath = path_through_gp(indsys, node0, node1, node0->gp);
 	  plus2 = node0;
 	}
 	else {
-	  temppath = path_through_gp(node1, node0, node0->gp);
+	  temppath = path_through_gp(indsys, node1, node0, node0->gp);
 	  plus2 = node1;
 	}
 	while(temppath != NULL) {
 	  telem = temppath;
 	  seg = (SEGMENT *)telem->seg.segp;
-	  if (plus2 == seg->node[0]) 
+	  if (plus2 == seg->node[0])
 	    sign2 = 1;
 	  else if (plus2 == seg->node[1])
 	    sign2 = -1;
@@ -804,10 +886,10 @@ void make_many_meshes_from_path(SPATH *path, MELEMENT **Mlist, Minfo *m_info,
 	    fprintf(stderr, "Hey, path_through_gp made nonconnected path!\n");
 	    exit(1);
 	  }
-	  minipath = add_seg_to_list(selem->seg, minipath);
+	  minipath = add_seg_to_list(indsys,selem->seg, minipath);
 	  seg_count++;
 	  if (seg_count == FILS_PER_MESH) {
-	    Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh, 
+	    Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh,
 						       indsys);
 	    mesh++;
 	    reset_vars(&seg_count, &minipath);
@@ -815,6 +897,12 @@ void make_many_meshes_from_path(SPATH *path, MELEMENT **Mlist, Minfo *m_info,
 
 	  plus2 = getothernode(plus2, telem->seg);
 	  temppath = temppath->next;
+	  {
+	    SPATH *tt;
+	    tt=temppath;
+     	temppath = temppath->next;
+        sysFree(indsys, tt);
+	  }
 	}
       }
       else {
@@ -830,7 +918,7 @@ void make_many_meshes_from_path(SPATH *path, MELEMENT **Mlist, Minfo *m_info,
   }
 
   if (seg_count == FILS_PER_MESH) {
-    Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh, 
+    Mlist[mstart + mesh] = make_mesh_from_path(minipath, mstart+mesh,
 					       indsys);
     mesh++;
     reset_vars(&seg_count, &minipath);
@@ -873,7 +961,7 @@ void make_many_meshes_from_path(SPATH *path, MELEMENT **Mlist, Minfo *m_info,
 void reset_vars(nt *seg_count, SPATH **minipath)
 {
   *seg_count = 0;
-  free_spath(*minipath); 
+  free_spath(*minipath);
   *minipath = NULL;
 }
 
@@ -903,7 +991,9 @@ void pick_unconstrained(MELEMENT **Mlist, Minfo *m_info, int total_meshes,
   int first /*, num_meshes*/;
 
   counter = 0;
-  m_undone = (Minfo **)Gmalloc(big_meshes*sizeof(Minfo *));
+  m_undone =0;
+  sysALLOC(m_undone,big_meshes,Minfo *,ON,IND,indsys,sysAllocTypePtrArray);
+
 
   /* This goes through all the big meshes and picks one representative mesh*/
   for(i = 0; i < num_mesh; i++) {
@@ -915,10 +1005,10 @@ void pick_unconstrained(MELEMENT **Mlist, Minfo *m_info, int total_meshes,
     fprintf(stderr, "Error getting representative meshes\n");
     exit(1);
   }
-  
+
   undone = big_meshes;
   last_undone = undone + 1;
-  
+
   while(undone < last_undone) {
     last_undone = undone;
 
@@ -934,7 +1024,7 @@ void pick_unconstrained(MELEMENT **Mlist, Minfo *m_info, int total_meshes,
 	  /* This mesh is unique among minimeshes*/
 	  if (is_globally_unique(m_info[j], num_mesh, Mlist, total_meshes)) {
 	    quit = TRUE;
-	    
+
 	    choose_this_mesh(m_undone[i], j, m_info);
 	  }
 	}
@@ -953,7 +1043,7 @@ void pick_unconstrained(MELEMENT **Mlist, Minfo *m_info, int total_meshes,
 	m_undone[j-1] = m_undone[j];
 	m_undone[j] = m_one;
       }
-	
+
   /* Go through all the undone meshes and pick the first available mesh */
   for(i = 0; i < undone; i++) {
     first = m_undone[i]->first;
@@ -962,10 +1052,10 @@ void pick_unconstrained(MELEMENT **Mlist, Minfo *m_info, int total_meshes,
     for(j = first; j < first + num_meshes && quit == FALSE; j++) {
       if (is_locally_unique(m_undone, j, Mlist)) {
 	/* This mesh is unique among other selected */
-	if (is_globally_unique(m_info[j], &(Mlist[num_mesh]), 
+	if (is_globally_unique(m_info[j], &(Mlist[num_mesh]),
 			       total_meshes - num_mesh)) {
 	  quit = TRUE;
-	    
+
 	  choose_this_mesh(m_undone[i], j, m_info);
 	}
       }
@@ -975,8 +1065,8 @@ void pick_unconstrained(MELEMENT **Mlist, Minfo *m_info, int total_meshes,
       exit(1);
     }
   }
-    
-}  
+
+}
 
 void count_duplicates(Minfo **m_undone, int undone, MELEMENT **Mlist,
     Minfo *m_info)
@@ -1019,14 +1109,14 @@ void mesh_comp(MELEMENT *m1, MELEMENT *m2)
       m1 = m1->next;
       m2 = m2->next;
     }
-      
+
 
   if (m1 != NULL || m2 != NULL)
     same = FALSE;
 
   return same;
 }
-    
+
 int is_duplicated(Minfo m_one)
 {
   return (m_one.other_mesh != 1);
@@ -1041,7 +1131,7 @@ int is_globally_unique(Minfo m_one, int minimeshes, MELEMENT **Mlist,
   for(i = minimeshes; i < num_mesh && unique == TRUE; i++)
     if (mesh_comp(Mlist[m_one.mesh_num], Mlist[i]) == TRUE)
       unique = FALSE;
-    
+
   return unique;
 }
 
@@ -1054,7 +1144,7 @@ void choose_this_mesh(Minfo *m_begin, int constraining_mesh, Minfo *m_info)
 
   /* find a good other_mesh */
   for(i = m_begin->first; i < m_begin->first + m_begin->num_meshes; i++)
-    if (i != constraining_mesh) 
+    if (i != constraining_mesh)
       if (m_info[i].other_mesh < num_dups) {
 	other_mesh = i;
 	num_dups = m_info[i].other_mesh;
@@ -1081,7 +1171,7 @@ int get_undone(Minfo **m_undone, int undone)
   for(i = 0; i < undone; i++)
     if (m_undone[i]->constraining_mesh == -1)
       m_undone[new_undone++] = m_undone[i];
-  
+
   return new_undone;
 }
 

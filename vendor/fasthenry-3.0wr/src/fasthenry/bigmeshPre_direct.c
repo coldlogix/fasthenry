@@ -1,4 +1,4 @@
-/* this preconditions the 
+/* this preconditions the
 /* This preconditions one row. It is mostly a duplicate of indPrecond()
  code from olmulPrcond() */
 
@@ -6,7 +6,7 @@
 
 #define PARTMESH OFF
 
-/* This near picks up only the hamming distance one cubes. */    
+/* This near picks up only the hamming distance one cubes. */
 #define HNEAR(nbr, nj, nk, nl) \
 ((ABS((nbr)->j - (nj)) + ABS((nbr)->k - (nk)) + ABS((nbr)->l - (nl))) <= 1)
 
@@ -25,8 +25,8 @@
 FILE *fp;
 
 /* SRW */
-void bigmesh_direct(ssystem *sys, SYS *indsys, double w)
-int is_in_Precond(PRE_ELEMENT *prelist, int col, PRE_ELEMENT **last)
+void bigmesh_direct(ssystem *sys, SYS *indsys, double w);
+int is_in_Precond(PRE_ELEMENT *prelist, int col, PRE_ELEMENT **last);
 
 
 void bigmesh_direct(ssystem *sys, SYS *indsys, double w)
@@ -53,7 +53,7 @@ void bigmesh_direct(ssystem *sys, SYS *indsys, double w)
 
   if (meshsize > meshmax) {
     CALLOC(meshmat, meshsize + 10, CX*, ON, IND);
-    for(i = 0; i < meshsize + 10; i++) 
+    for(i = 0; i < meshsize + 10; i++)
       CALLOC(meshmat[i], meshsize + 10, CX, ON, IND);
     meshmax = meshsize + 10;
   }
@@ -95,7 +95,7 @@ void bigmesh_direct(ssystem *sys, SYS *indsys, double w)
 	    prelast->next = pre;
 	  }
 	}
-      }	  
+      }
     }
 #endif
 
@@ -127,7 +127,7 @@ void bigmesh_direct(ssystem *sys, SYS *indsys, double w)
       }
     }
 
-}  
+}
 
 int is_in_Precond(PRE_ELEMENT *prelist, int col, PRE_ELEMENT **last)
 {
@@ -135,8 +135,8 @@ int is_in_Precond(PRE_ELEMENT *prelist, int col, PRE_ELEMENT **last)
     *last = NULL;
     return 0;
   }
-  
-  if (prelist->meshcol == col) 
+
+  if (prelist->meshcol == col)
     return 1;
   else if (prelist->meshcol > col) {
     *last = NULL;

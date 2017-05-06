@@ -84,6 +84,263 @@ static int MatrixIsSingular( MatrixPtr, int );
 static int ZeroPivot( MatrixPtr, int );
 static void WriteStatus( MatrixPtr, int );
 
+#if BITFIELD
+/* SRW 080714 */
+
+/* Uncomment to enable consistency testing for debugging (slow!) */
+/* #define TEST_BITS */
+
+/*
+ * We will use a bit field to keep track of which elements have been
+ * allocated, which can speed element insertion and removal.  The row
+ * and column swapping during reordering uses a lot of these
+ * operations.
+ *
+ * The problem is that in order to find the insertion point of the
+ * singly-linked rows and columns, one has to walk the linked lists.
+ * This can be very time consuming for a heavily populated matrix.
+ * One could use doubly-linked lists, which allows elements to be
+ * unlinked quickly, but this doesn't help when linking to a location
+ * that does not already contain an element.
+ *
+ * The bit field allows finding the element that is allocated just
+ * before a given index.  This is the element to which a newly
+ * inserted element must be linked (if it exists).  A set bit tells us
+ * that the element exists, and the element can then be obtained from
+ * the hash table that was created during the build process.
+ *
+ * We actually create two bit fields, one for rows and one for
+ * columns.  There will be some memory overhead, but the time savings
+ * can be very worthwhile.
+ */
+
+/* Return the position of the least significant one bit, so if v is
+ * 10110100 (base 2), the result will be 3.
+ * ASSUMES 32 BIT INT!!!
+ */
+static int least_set(unsigned int v)
+{
+    if (!v)
+        return (0);
+    v &= -v;  // only the least one is set
+    unsigned int c = 1;
+    if (v & 0xffff0000)
+        c += 0x10;
+    if (v & 0xff00ff00)
+        c += 0x8;
+    if (v & 0xf0f0f0f0)
+        c += 0x4;
+    if (v & 0xcccccccc)
+        c += 0x2;
+    if (v & 0xaaaaaaaa)
+        c += 0x1;
+    return (c);
+}
+
+/* Set or unset the flag at row,col.
+ */
+void ba_setbit(MatrixPtr Matrix, int row, int col, int set)
+{
+    unsigned int sz = Matrix->Size + 1;
+    unsigned int nd = sz/32 + (sz & 31 ? 1 : 0);
+    unsigned int mask = 0x80000000 >> (col & 31);
+    unsigned int d, *p, icol, irow;
+
+    /* Row bit */
+    icol = col/32;
+    p = Matrix->BitField[row];
+    d = p[icol];
+    if (set)
+        d |= mask;
+    else
+        d &= ~mask;
+    p[icol] = d;
+
+    /* Column bit */
+    mask = 0x80000000 >> (row & 31);
+    irow = row/32 + nd;
+    p = Matrix->BitField[col];
+    d = p[irow];
+    if (set)
+        d |= mask;
+    else
+        d &= ~mask;
+    p[irow] = d;
+}
+
+/* Return nonzero if the flag at row,col is set.
+ */
+int ba_getbit(MatrixPtr Matrix, int row, int col)
+{
+    unsigned int mask = 0x80000000 >> (col & 31);
+
+    col /= 32;
+    return (Matrix->BitField[row][col] & mask);
+}
+
+/* Return the nearest flagged column to the left of row,col.
+ */
+ElementPtr ba_left(MatrixPtr Matrix, int row, int col)
+{
+    unsigned int mask = 0x80000000 >> (col & 31);
+
+    col /= 32;
+    mask <<= 1;
+    if (!mask) {
+        if (!col)
+            return (0);
+        col--;
+        mask = 0x1;
+    }
+    mask--;
+    mask = ~mask;
+    while (col >= 0) {
+        unsigned int d = (Matrix->BitField[row][col] & mask);
+        int b;
+
+        mask = -1;
+        b = least_set(d);
+        if (b) {
+            ElementPtr el;
+            col = (32*col + 32 - b);
+            row = Matrix->IntToExtRowMap[row];
+            col = Matrix->IntToExtColMap[col];
+            el = sph_get(Matrix, row, col);
+            return (el);
+        }
+        col--;
+    }
+    return (0);
+}
+
+/* Return the nearest flagged row below row,col.
+ */
+ElementPtr ba_above(MatrixPtr Matrix, int row, int col)
+{
+    unsigned int sz = Matrix->Size + 1;
+    unsigned int nd = sz/32 + (sz & 31 ? 1 : 0);
+    unsigned int mask = 0x80000000 >> (row & 31);
+
+    row /= 32;
+    mask <<= 1;
+    if (!mask) {
+        if (!row)
+            return (0);
+        row--;
+        mask = 0x1;
+    }
+    mask--;
+    mask = ~mask;
+    while (row >= 0) {
+        unsigned int d = (Matrix->BitField[col][row + nd] & mask);
+        int b;
+
+        mask = -1;
+        b = least_set(d);
+        if (b) {
+            ElementPtr el;
+            row = (32*row + 32 - b);
+            row = Matrix->IntToExtRowMap[row];
+            col = Matrix->IntToExtColMap[col];
+            el = sph_get(Matrix, row, col);
+            return (el);
+        }
+        row--;
+    }
+    return (0);
+
+    /************************************************************
+     * This is an alternative that doesn't require a second bit
+     * field, unfortunately this is unacceptably slow.
+     *
+    unsigned int mask = 0x80000000 >> (col & 31);
+    int mcol = col/32;
+
+    row--;
+    while (row > 0) {
+        if (Matrix->BitField[row][mcol] & mask) {
+            row = Matrix->IntToExtRowMap[row];
+            col = Matrix->IntToExtColMap[col];
+            return (sph_get(Matrix, row, col));
+        }
+        row--;
+    }
+    return (0);
+    ************************************************************/
+}
+
+/* Set up a bitfield for the sparse matrix.  A bit will be set for
+ * every allocated entry.
+ */
+void ba_setup(MatrixPtr Matrix)
+{
+    unsigned int sz = Matrix->Size + 1;
+    unsigned int nd = sz/32 + (sz & 31 ? 1 : 0);
+    unsigned int i;
+
+    // Double the size, for the column bits.
+    nd += nd;
+
+    spAlloc(Matrix, &Matrix->BitField ,sizeof(unsigned int*)*sz, AllocTypePtrArray);
+    for (i = 0; i < sz; i++)
+        spAlloc(Matrix, &Matrix->BitField[i], sizeof(unsigned int)*nd, AllocTypeGeneric);
+
+    for (i = 1; i <= Matrix->Size; i++) {
+        ElementPtr p = Matrix->FirstInCol[i];
+        for ( ; p; p = p->NextInCol) {
+            ba_setbit(Matrix, p->Row, p->Col, 1);
+#ifdef TEST_BITS
+            int row = Matrix->IntToExtRowMap[p->Row];
+            int col = Matrix->IntToExtColMap[p->Col];
+            ElementPtr qq, q = sph_get(Matrix, row, col);
+            if (p != q) {
+                printf("ba_setup: hash table inconsistency %lx %lx\n",
+                    p, q);
+            }
+            qq = ba_left(Matrix, p->Row, p->Col);
+            if (qq) {
+                if (qq->NextInRow != q)
+                    printf("ba_left inconsistency 1 %lx %lx\n",
+                        qq->NextInRow, q);
+            }
+            else {
+                if (q != Matrix->FirstInRow[p->Row])
+                    printf("ba_left inconsistency 2 %lx %lx\n",
+                        Matrix->FirstInRow[p->Row], q);
+            }
+            qq = ba_above(Matrix, p->Row, p->Col);
+            if (qq) {
+                if (qq->NextInCol != q)
+                    printf("ba_above inconsistency 1 %lx %lx\n",
+                        qq->NextInCol, q);
+            }
+            else {
+                if (q != Matrix->FirstInCol[p->Col])
+                    printf("ba_above inconsistency 2 %lx %lx\n",
+                        Matrix->FirstInCol[p->Col], q);
+            }
+#endif
+        }
+    }
+}
+
+void ba_destroy(MatrixPtr Matrix)
+{
+    unsigned int i, sz;
+
+    if (Matrix->BitField == NULL)
+    {
+        return;
+    }
+    sz = Matrix->Size + 1;
+    for (i = 0; i < sz; i++)
+    {
+        spFree(Matrix, &Matrix->BitField[i]);
+    }
+    spFree(Matrix, &Matrix->BitField);
+}
+
+#endif
 
 
 /*
@@ -248,6 +505,9 @@ RealNumber LargestInCol;
             CreateInternalVectors( Matrix );
         if (Matrix->Error >= spFATAL)
             return Matrix->Error;
+#if BITFIELD
+        ba_setup(Matrix);
+#endif
     }
 
 /* Form initial Markowitz products. */
@@ -494,7 +754,7 @@ ComplexNumber Mult, Pivot;
 /* Check for singular matrix. */
             Pivot = Dest[Step];
             if (CMPLX_1_NORM(Pivot) == 0.0) return ZeroPivot( Matrix, Step );
-            CMPLX_RECIPROCAL( *Matrix->Diag[Step], Pivot );  
+            CMPLX_RECIPROCAL( *Matrix->Diag[Step], Pivot );
         }
         else
         {   /* Update column using direct addressing scatter-gather. */
@@ -525,7 +785,7 @@ ComplexNumber Mult, Pivot;
 /* Check for singular matrix. */
             pElement = Matrix->Diag[Step];
             if (ELEMENT_MAG(pElement) == 0.0) return ZeroPivot( Matrix, Step );
-            CMPLX_RECIPROCAL( *pElement, *pElement );  
+            CMPLX_RECIPROCAL( *pElement, *pElement );
         }
     }
 
@@ -734,44 +994,65 @@ int  Size;
     Size= Matrix->Size;
 
     if (Matrix->MarkowitzRow == NULL)
-    {   if (( Matrix->MarkowitzRow = ALLOC(int, Size+1)) == NULL)
+    {
+       spAlloc(Matrix, &Matrix->MarkowitzRow,sizeof(int)*(Size+1), AllocTypeGeneric);
+       if ( Matrix->MarkowitzRow == NULL)
+       {
             Matrix->Error = spNO_MEMORY;
+       }
     }
     if (Matrix->MarkowitzCol == NULL)
-    {   if (( Matrix->MarkowitzCol = ALLOC(int, Size+1)) == NULL)
+    {
+        spAlloc(Matrix, &Matrix->MarkowitzCol,sizeof(int)*(Size+1), AllocTypeGeneric);
+        if ( Matrix->MarkowitzCol  == NULL)
+        {
             Matrix->Error = spNO_MEMORY;
+        }
     }
     if (Matrix->MarkowitzProd == NULL)
-    {   if (( Matrix->MarkowitzProd = ALLOC(long, Size+2)) == NULL)
+    {
+        spAlloc(Matrix, &Matrix->MarkowitzProd,sizeof(long)*(Size+2), AllocTypeGeneric);
+        if ( Matrix->MarkowitzProd  == NULL)
+        {
             Matrix->Error = spNO_MEMORY;
+        }
     }
 
 /* Create DoDirect vectors for use in spFactor(). */
 #if REAL
     if (Matrix->DoRealDirect == NULL)
-    {   if (( Matrix->DoRealDirect = ALLOC(BOOLEAN, Size+1)) == NULL)
+    {
+       spAlloc(Matrix, &Matrix->DoRealDirect,sizeof(BOOLEAN)*(Size+1), AllocTypeGeneric);
+       if ( Matrix->DoRealDirect  == NULL)
+       {
             Matrix->Error = spNO_MEMORY;
+       }
     }
 #endif
 #if spCOMPLEX
     if (Matrix->DoCmplxDirect == NULL)
-    {   if (( Matrix->DoCmplxDirect = ALLOC(BOOLEAN, Size+1)) == NULL)
-            Matrix->Error = spNO_MEMORY;
+    {
+       spAlloc(Matrix, &Matrix->DoCmplxDirect,sizeof(BOOLEAN)*(Size+1), AllocTypeGeneric);
+       if ( Matrix->DoCmplxDirect  == NULL)
+       {
+         Matrix->Error = spNO_MEMORY;
+       }
     }
 #endif
 
 /* Create Intermediate vectors for use in MatrixSolve. */
+    if (Matrix->Intermediate == NULL)
+    {
 #if spCOMPLEX
-    if (Matrix->Intermediate == NULL)
-    {   if ((Matrix->Intermediate = ALLOC(RealNumber,2*(Size+1))) == NULL)
-            Matrix->Error = spNO_MEMORY;
-    }
+       spAlloc(Matrix, &Matrix->Intermediate, sizeof(RealNumber)*2*(Size+1), AllocTypeGeneric);
 #else
-    if (Matrix->Intermediate == NULL)
-    {   if ((Matrix->Intermediate = ALLOC(RealNumber, Size+1)) == NULL)
-            Matrix->Error = spNO_MEMORY;
-    }
+       spAlloc(Matrix, &Matrix->Intermediate, sizeof(RealNumber)*(Size+1), AllocTypeGeneric);
 #endif
+       if (Matrix->Intermediate == NULL)
+       {
+            Matrix->Error = spNO_MEMORY;
+       }
+    }
 
     if (Matrix->Error != spNO_MEMORY)
         Matrix->InternalVectorsAllocated = YES;
@@ -1025,7 +1306,7 @@ register ElementPtr  ChosenPivot;
     {
 /*
  * Either no singletons exist or they weren't acceptable.  Take quick first
- * pass at searching diagonal.  First search for element on diagonal of 
+ * pass at searching diagonal.  First search for element on diagonal of
  * remaining submatrix with smallest Markowitz product, then check to see
  * if it okay numerically.  If not, QuicklySearchDiagonal fails.
  */
@@ -2251,7 +2532,7 @@ ElementPtr  Element1, Element2;
  *
  *  Performs all required operations to exchange two columns. Those operations
  *  include: swap FirstInCol pointers, fixing up the NextInRow pointers,
- *  swapping column indexes in MatrixElements, and swapping Markowitz 
+ *  swapping column indexes in MatrixElements, and swapping Markowitz
  *  column counts.
  *
  *  >>> Arguments:
@@ -2388,15 +2669,42 @@ ExchangeColElements( MatrixPtr Matrix, int Row1, ElementPtr Element1,
 ElementPtr  *ElementAboveRow1, *ElementAboveRow2;
 ElementPtr  ElementBelowRow1, ElementBelowRow2;
 register  ElementPtr  pElement;
+#ifdef TEST_BITS
+ElementPtr *tElementAboveRow1, *tElementAboveRow2, tpElement;
+#endif
 
 /* Begin `ExchangeColElements'. */
 /* Search to find the ElementAboveRow1. */
+
+#if BITFIELD
+    pElement = ba_above(Matrix, Row1, Column);
+    if (pElement)
+        ElementAboveRow1 = &(pElement->NextInCol);
+    else
+        ElementAboveRow1 = &(Matrix->FirstInCol[Column]);
+    pElement = *ElementAboveRow1;
+#ifdef TEST_BITS
+    tElementAboveRow1 = &(Matrix->FirstInCol[Column]);
+    tpElement = *tElementAboveRow1;
+    while (tpElement->Row < Row1)
+    {   tElementAboveRow1 = &(tpElement->NextInCol);
+        tpElement = *tElementAboveRow1;
+    }
+    if (tElementAboveRow1 != ElementAboveRow1 ||
+            tpElement != pElement) {
+        printf("Row FOO 1\n");
+        ElementAboveRow1 = tElementAboveRow1;
+        pElement = tpElement;
+    }
+#endif
+#else
     ElementAboveRow1 = &(Matrix->FirstInCol[Column]);
     pElement = *ElementAboveRow1;
     while (pElement->Row < Row1)
     {   ElementAboveRow1 = &(pElement->NextInCol);
         pElement = *ElementAboveRow1;
     }
+#endif
     if (Element1 != NULL)
     {   ElementBelowRow1 = Element1->NextInCol;
         if (Element2 == NULL)
@@ -2406,20 +2714,47 @@ register  ElementPtr  pElement;
             {
 /* Element1 must be removed from linked list and moved. */
                 *ElementAboveRow1 = ElementBelowRow1;
-
+#if BITFIELD
+                pElement = ba_above(Matrix, Row2, Column);
+                if (pElement == Element1) {
+                    ElementAboveRow2 = ElementAboveRow1;
+                    pElement = pElement->NextInCol;
+                }
+                else {
+                    ElementAboveRow2 = &(pElement->NextInCol);
+                    pElement = pElement->NextInCol;
+                }
+#ifdef TEST_BITS
+                tpElement = ElementBelowRow1;
+                do
+                {   tElementAboveRow2 = &(tpElement->NextInCol);
+                    tpElement = *tElementAboveRow2;
+                }   while (tpElement != NULL AND tpElement->Row < Row2);
+                if (tElementAboveRow2 != ElementAboveRow2 ||
+                        tpElement != pElement) {
+                    printf("Row FOO 2\n");
+                    ElementAboveRow2 = tElementAboveRow2;
+                    pElement = tpElement;
+                }
+#endif
+#else
 /* Search column for Row2. */
                 pElement = ElementBelowRow1;
                 do
                 {   ElementAboveRow2 = &(pElement->NextInCol);
                     pElement = *ElementAboveRow2;
                 }   while (pElement != NULL AND pElement->Row < Row2);
-
+#endif // BITFIELD
 /* Place Element1 in Row2. */
                 *ElementAboveRow2 = Element1;
                 Element1->NextInCol = pElement;
                 *ElementAboveRow1 =ElementBelowRow1;
             }
             Element1->Row = Row2;
+#if BITFIELD
+            ba_setbit(Matrix, Row1, Column, 0);
+            ba_setbit(Matrix, Row2, Column, 1);
+#endif
         }
         else
         {
@@ -2433,13 +2768,31 @@ register  ElementPtr  pElement;
             }
             else
             {
+#if BITFIELD
+                pElement = ba_above(Matrix, Row2, Column);
+                ElementAboveRow2 = &(pElement->NextInCol);
+                pElement = pElement->NextInCol;
+#ifdef TEST_BITS
+                tpElement = ElementBelowRow1;
+                do
+                {   tElementAboveRow2 = &(tpElement->NextInCol);
+                    tpElement = *tElementAboveRow2;
+                }   while (tpElement->Row < Row2);
+                if (tElementAboveRow2 != ElementAboveRow2 ||
+                        tpElement != pElement) {
+                    printf("Row FOO 3\n");
+                    ElementAboveRow2 = tElementAboveRow2;
+                    pElement = tpElement;
+                }
+#endif
+#else
 /* Element2 is not just below Element1 and must be searched for. */
                 pElement = ElementBelowRow1;
                 do
                 {   ElementAboveRow2 = &(pElement->NextInCol);
                     pElement = *ElementAboveRow2;
                 }   while (pElement->Row < Row2);
-
+#endif // BITFIELD
                 ElementBelowRow2 = Element2->NextInCol;
 
 /* Switch Element1 and Element2. */
@@ -2459,11 +2812,34 @@ register  ElementPtr  pElement;
 
 /* Find Element2. */
         if (ElementBelowRow1->Row != Row2)
-        {   do
-            {   ElementAboveRow2 = &(pElement->NextInCol);
+        {
+#if BITFIELD
+            pElement = ba_above(Matrix, Row2, Column);
+            if (pElement)
+                ElementAboveRow2 = &(pElement->NextInCol);
+            else
+                ElementAboveRow2 = &(Matrix->FirstInCol[Column]);
+            pElement = *ElementAboveRow2;
+#ifdef TEST_BITS
+            tpElement = ElementBelowRow1;
+            do
+            {   tElementAboveRow2 = &(tpElement->NextInCol);
+                tpElement = *tElementAboveRow2;
+            }   while (tpElement->Row < Row2);
+            if (tElementAboveRow2 != ElementAboveRow2 ||
+                    tpElement != pElement) {
+                printf("Row FOO 4\n");
+                ElementAboveRow2 = tElementAboveRow2;
+                pElement = tpElement;
+            }
+#endif
+#else
+            do
+            {
+                ElementAboveRow2 = &(pElement->NextInCol);
                 pElement = *ElementAboveRow2;
             }   while (pElement->Row < Row2);
-
+#endif // BITFIELD
         ElementBelowRow2 = Element2->NextInCol;
 
 /* Move Element2 to Row1. */
@@ -2472,6 +2848,10 @@ register  ElementPtr  pElement;
             Element2->NextInCol = ElementBelowRow1;
         }
         Element2->Row = Row1;
+#if BITFIELD
+        ba_setbit(Matrix, Row2, Column, 0);
+        ba_setbit(Matrix, Row1, Column, 1);
+#endif
     }
     return;
 }
@@ -2528,15 +2908,41 @@ ExchangeRowElements( MatrixPtr Matrix, int Col1, ElementPtr Element1,
 ElementPtr  *ElementLeftOfCol1, *ElementLeftOfCol2;
 ElementPtr  ElementRightOfCol1, ElementRightOfCol2;
 register   ElementPtr  pElement;
+#ifdef TEST_BITS
+ElementPtr  *tElementLeftOfCol1, *tElementLeftOfCol2, tpElement;
+#endif
 
 /* Begin `ExchangeRowElements'. */
 /* Search to find the ElementLeftOfCol1. */
+#if BITFIELD
+    pElement = ba_left(Matrix, Row, Col1);
+    if (pElement)
+        ElementLeftOfCol1 = &(pElement->NextInRow);
+    else
+        ElementLeftOfCol1 = &(Matrix->FirstInRow[Row]);
+    pElement = *ElementLeftOfCol1;
+#ifdef TEST_BITS
+    tElementLeftOfCol1 = &(Matrix->FirstInRow[Row]);
+    tpElement = *tElementLeftOfCol1;
+    while (tpElement->Col < Col1)
+    {   tElementLeftOfCol1 = &(tpElement->NextInRow);
+        tpElement = *tElementLeftOfCol1;
+    }
+    if (tElementLeftOfCol1 != ElementLeftOfCol1 ||
+            tpElement != pElement) {
+        printf("Col FOO 1\n");
+        ElementLeftOfCol1 = tElementLeftOfCol1;
+        pElement = tpElement;
+    }
+#endif
+#else
     ElementLeftOfCol1 = &(Matrix->FirstInRow[Row]);
     pElement = *ElementLeftOfCol1;
     while (pElement->Col < Col1)
     {   ElementLeftOfCol1 = &(pElement->NextInRow);
         pElement = *ElementLeftOfCol1;
     }
+#endif
     if (Element1 != NULL)
     {   ElementRightOfCol1 = Element1->NextInRow;
         if (Element2 == NULL)
@@ -2546,20 +2952,44 @@ register   ElementPtr  pElement;
             {
 /* Element1 must be removed from linked list and moved. */
                 *ElementLeftOfCol1 = ElementRightOfCol1;
-
+#if BITFIELD
+                pElement = ba_left(Matrix, Row, Col2);
+                if (pElement == Element1)
+                    ElementLeftOfCol2 = ElementLeftOfCol1;
+                else
+                    ElementLeftOfCol2 = &(pElement->NextInRow);
+                pElement = pElement->NextInRow;
+#ifdef TEST_BITS
+                tpElement = ElementRightOfCol1;
+                do
+                {   tElementLeftOfCol2 = &(tpElement->NextInRow);
+                    tpElement = *tElementLeftOfCol2;
+                }   while (tpElement != NULL AND tpElement->Col < Col2);
+                if (tElementLeftOfCol2 != ElementLeftOfCol2 ||
+                        tpElement != pElement) {
+                    printf("Col FOO 2\n");
+                    ElementLeftOfCol2 = tElementLeftOfCol2;
+                    pElement = tpElement;
+                }
+#endif
+#else
 /* Search Row for Col2. */
                 pElement = ElementRightOfCol1;
                 do
                 {   ElementLeftOfCol2 = &(pElement->NextInRow);
                     pElement = *ElementLeftOfCol2;
                 }   while (pElement != NULL AND pElement->Col < Col2);
-
+#endif // BITFIELD
 /* Place Element1 in Col2. */
                 *ElementLeftOfCol2 = Element1;
                 Element1->NextInRow = pElement;
                 *ElementLeftOfCol1 =ElementRightOfCol1;
             }
             Element1->Col = Col2;
+#if BITFIELD
+            ba_setbit(Matrix, Row, Col1, 0);
+            ba_setbit(Matrix, Row, Col2, 1);
+#endif
         }
         else
         {
@@ -2573,13 +3003,31 @@ register   ElementPtr  pElement;
             }
             else
             {
+#if BITFIELD
+                pElement = ba_left(Matrix, Row, Col2);
+                ElementLeftOfCol2 = &(pElement->NextInRow);
+                pElement = pElement->NextInRow;
+#ifdef TEST_BITS
+                tpElement = ElementRightOfCol1;
+                do
+                {   tElementLeftOfCol2 = &(tpElement->NextInRow);
+                    tpElement = *tElementLeftOfCol2;
+                }   while (tpElement->Col < Col2);
+                if (tElementLeftOfCol2 != ElementLeftOfCol2 ||
+                        tpElement != pElement) {
+                    printf("Col FOO 3\n");
+                    ElementLeftOfCol2 = tElementLeftOfCol2;
+                    pElement = tpElement;
+                }
+#endif
+#else
 /* Element2 is not just right of Element1 and must be searched for. */
                 pElement = ElementRightOfCol1;
                 do
                 {   ElementLeftOfCol2 = &(pElement->NextInRow);
                     pElement = *ElementLeftOfCol2;
                 }   while (pElement->Col < Col2);
-
+#endif
                 ElementRightOfCol2 = Element2->NextInRow;
 
 /* Switch Element1 and Element2. */
@@ -2599,11 +3047,33 @@ register   ElementPtr  pElement;
 
 /* Find Element2. */
         if (ElementRightOfCol1->Col != Col2)
-        {   do
+        {
+#if BITFIELD
+            pElement = ba_left(Matrix, Row, Col2);
+            if (pElement)
+                ElementLeftOfCol2 = &(pElement->NextInRow);
+            else
+                ElementLeftOfCol2 = &(Matrix->FirstInRow[Row]);
+            pElement = *ElementLeftOfCol2;
+#ifdef TEST_BITS
+            tpElement = ElementRightOfCol1;
+            do
+            {   tElementLeftOfCol2 = &(tpElement->NextInRow);
+                tpElement = *tElementLeftOfCol2;
+            }   while (tpElement->Col < Col2);
+            if (tElementLeftOfCol2 != ElementLeftOfCol2 ||
+                    tpElement != pElement) {
+                printf("Col FOO 4\n");
+                ElementLeftOfCol2 = tElementLeftOfCol2;
+                pElement = tpElement;
+            }
+#endif
+#else
+            do
             {   ElementLeftOfCol2 = &(pElement->NextInRow);
                 pElement = *ElementLeftOfCol2;
             }   while (pElement->Col < Col2);
-
+#endif // BITFIELD
             ElementRightOfCol2 = Element2->NextInRow;
 
 /* Move Element2 to Col1. */
@@ -2612,6 +3082,10 @@ register   ElementPtr  pElement;
             Element2->NextInRow = ElementRightOfCol1;
         }
         Element2->Col = Col1;
+#if BITFIELD
+        ba_setbit(Matrix, Row, Col1, 1);
+        ba_setbit(Matrix, Row, Col2, 0);
+#endif
     }
     return;
 }
@@ -2683,8 +3157,15 @@ register  ElementPtr  pLower, pUpper;
         {   Row = pLower->Row;
 
 /* Find element in row that lines up with current lower triangular element. */
+#if BITFIELD
+            if (pSub) {
+                pSub = ba_above(Matrix, Row, pSub->Col);
+                pSub = pSub->NextInCol;
+            }
+#else
             while (pSub != NULL AND pSub->Row < Row)
                 pSub = pSub->NextInCol;
+#endif // BITFIELD
 
 /* Test to see if desired element was not found, if not, create fill-in. */
             if (pSub == NULL OR pSub->Row > Row)
@@ -2770,8 +3251,15 @@ register  ElementPtr  pLower, pUpper;
         {   Row = pLower->Row;
 
 /* Find element in row that lines up with current lower triangular element. */
+#if BITFIELD
+            if (pSub) {
+                pSub = ba_above(Matrix, Row, pSub->Col);
+                pSub = pSub->NextInCol;
+            }
+#else
             while (pSub != NULL AND pSub->Row < Row)
                 pSub = pSub->NextInCol;
+#endif // BITFIELD
 
 /* Test to see if desired element was not found, if not, create fill-in. */
             if (pSub == NULL OR pSub->Row > Row)
@@ -2927,6 +3415,14 @@ register  ElementPtr  pElement, *ppElementAbove;
 
 /* End of search, create the element. */
     pElement = spcCreateElement( Matrix, Row, Col, ppElementAbove, YES );
+
+#if BITFIELD
+    ba_setbit(Matrix, Row, Col, 1);
+#endif
+#if BUILDHASH
+    sph_add(Matrix, Matrix->IntToExtRowMap[Row], Matrix->IntToExtColMap[Col],
+        pElement);
+#endif
 
 /* Update Markowitz counts and products. */
     Matrix->MarkowitzProd[Row] = ++Matrix->MarkowitzRow[Row] *

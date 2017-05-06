@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_layout_file>
+	<ActiveTarget name="Debug" />
+	<File name="../fasthenry/sparse/spDefs.h" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="34111" topLine="906" />
+		</Cursor>
+	</File>
+	<File name="../fasthenry/sparse/spFactor.c" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="28813" topLine="851" />
+		</Cursor>
+	</File>
+	<File name="test.c" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1118" topLine="45" />
+		</Cursor>
+	</File>
+	<File name="../fasthenry/sparse/spAllocate.c" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="44706" topLine="1575" />
+		</Cursor>
+	</File>
+	<File name="../fasthenry/sparse/spConfig.h" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="14354" topLine="270" />
+		</Cursor>
+	</File>
+	<File name="../fasthenry/sparse/spSolve.c" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="9812" topLine="276" />
+		</Cursor>
+	</File>
+	<File name="../fasthenry/sparse/spBuild.c" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="25362" topLine="910" />
+		</Cursor>
+	</File>
+	<File name="../fasthenry/sparse/spMatrix.h" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="11207" topLine="318" />
+		</Cursor>
+	</File>
+</CodeBlocks_layout_file>

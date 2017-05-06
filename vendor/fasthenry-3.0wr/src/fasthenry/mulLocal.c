@@ -5,9 +5,9 @@
 /*
   globals used for temporary storage
 */
-double **facFrA;		/* array of factorial fractions */
-double *cosmkB;			/* array used to look up cos[(m+-k)beta] */
-double *sinmkB;			/* array used to look up sin[(m+-k)beta] */
+double **facFrA=0;		/* array of factorial fractions */
+double *cosmkB=0;			/* array used to look up cos[(m+-k)beta] */
+double *sinmkB=0;			/* array used to look up sin[(m+-k)beta] */
 
 /* SRW */
 void evalFacFra(double**, int);
@@ -15,10 +15,6 @@ void evalSqrtFac(double**, double**, int);
 void evalSinCos(double, int);
 double sinB(int);
 double cosB(int);
-double **mulMulti2Local(double, double, double, double, double, double, int);
-double **mulLocal2Local(double, double, double, double, double, double, int);
-double **mulQ2Local(charge**, int, int*, double, double, double, int);
-double **mulLocal2P(double, double, double, charge**, int, int);
 
 
 /*
@@ -113,10 +109,10 @@ double cosB(int sum)
   return(cosmkB[abs(sum)]);
 }
 
-/* 
-  Used for all but no local downward pass. 
+/*
+  Used for all but no local downward pass.
 */
-double **mulMulti2Local(double x, double y, double z, double xp, double yp,
+double **mulMulti2Local(ssystem* sys, double x, double y, double z, double xp, double yp,
     double zp, int order)
 /* double x, y, z, xp, yp, zp;	multipole and local cube centers */
 {
@@ -131,9 +127,12 @@ double **mulMulti2Local(double x, double y, double z, double xp, double yp,
   extern double *tleg, *Ir, *Irn, *phi, *Mphi; /* external temporary storage */
 
   /* allocate the multi to local transformation matrix */
-  CALLOC(mat, terms, double*, ON, AM2L);
+  mat=0;
+  mulALLOC(mat, terms, double*, ON, AM2L, sys, AllocTypePtrArray);
   for(i = 0; i < terms; i++)
-      CALLOC(mat[i], terms, double, ON, AM2L);
+  {
+      mulALLOC(mat[i], terms, double, ON, AM2L, sys, AllocTypeGeneric);
+  }
 
   /* find relative spherical coordinates */
   xyz2sphere(x, y, z, xp, yp, zp, &rho, &cosA, &beta);
@@ -162,7 +161,7 @@ double **mulMulti2Local(double x, double y, double z, double xp, double yp,
 	      mat[CINDEX(j, 0)][CINDEX(n, m)] += temp1*cosB(m)/rhoFac;
 	      mat[CINDEX(j, 0)][SINDEX(n, m, ct)] += temp1*sinB(m)/rhoFac;
 	    }
-	    else mat[CINDEX(j, 0)][CINDEX(n, 0)] 
+	    else mat[CINDEX(j, 0)][CINDEX(n, 0)]
 		+= tleg[CINDEX(j+n, 0)]*facFrA[j+n][n]/rhoFac;
 	  }
 	  else {
@@ -173,18 +172,18 @@ double **mulMulti2Local(double x, double y, double z, double xp, double yp,
 
 	    /* generate bar(N)j^k entry */
 	    if(m != 0) {
-	      mat[CINDEX(j, k)][CINDEX(n, m)] 
+	      mat[CINDEX(j, k)][CINDEX(n, m)]
 		  += (temp1*cosB(m-k)+temp2*cosB(m+k))/rhoFac;
-	      mat[CINDEX(j, k)][SINDEX(n, m, ct)] 
+	      mat[CINDEX(j, k)][SINDEX(n, m, ct)]
 		  += (temp1*sinB(m-k)+temp2*sinB(m+k))/rhoFac;
 	    }
 	    else mat[CINDEX(j, k)][CINDEX(n, 0)] += temp3*cosB(k)/rhoFac;
 
 	    /* generate dblbar(N)j^k entry */
 	    if(m != 0) {
-	      mat[SINDEX(j, k, ct)][CINDEX(n, m)] 
+	      mat[SINDEX(j, k, ct)][CINDEX(n, m)]
 		  += (-temp1*sinB(m-k)+temp2*sinB(m+k))/rhoFac;
-	      mat[SINDEX(j, k, ct)][SINDEX(n, m, ct)] 
+	      mat[SINDEX(j, k, ct)][SINDEX(n, m, ct)]
 		  += (temp1*cosB(m-k)-temp2*cosB(m+k))/rhoFac;
 	    }
 	    else mat[SINDEX(j, k, ct)][CINDEX(n, 0)] += temp3*sinB(k)/rhoFac;
@@ -201,10 +200,10 @@ double **mulMulti2Local(double x, double y, double z, double xp, double yp,
   return(mat);
 }
 
-/* 
+/*
   Used only for true (Greengard) downward pass - similar to Multi2Local
 */
-double **mulLocal2Local(double x, double y, double z, double xc, double yc,
+double **mulLocal2Local(ssystem* sys, double x, double y, double z, double xc, double yc,
     double zc, int order)
 /* double x, y, z, xc, yc, zc;	parent and child cube centers */
 {
@@ -219,9 +218,12 @@ double **mulLocal2Local(double x, double y, double z, double xc, double yc,
   extern double *tleg, *Ir, *Irn, *phi, *Mphi; /* external temporary storage */
 
   /* allocate the local to local transformation matrix */
-  CALLOC(mat, terms, double*, ON, AL2L);
+  mat=0;
+  mulALLOC(mat, terms, double*, ON, AL2L, sys, AllocTypePtrArray);
   for(i = 0; i < terms; i++)
-      CALLOC(mat[i], terms, double, ON, AL2L);
+  {
+      mulALLOC(mat[i], terms, double, ON, AL2L, sys, AllocTypeGeneric);
+  }
 
   /* find relative spherical coordinates */
   xyz2sphere(x, y, z, xc, yc, zc, &rho, &cosA, &beta);
@@ -285,7 +287,7 @@ double **mulLocal2Local(double x, double y, double z, double xc, double yc,
 		mat[SINDEX(j, k, ct)][SINDEX(n, m, ct)] += temp2*cosB(m+k);
 	      }
 	    }
-	    else if(n-j >= k) 
+	    else if(n-j >= k)
 		mat[SINDEX(j, k, ct)][CINDEX(n, 0)] += temp3*sinB(k);
 	  }
 	}
@@ -305,7 +307,7 @@ double **mulLocal2Local(double x, double y, double z, double xc, double yc,
   form almost identical to mulQ2Multi - follows NB12 pg 32 w/m,n replacing k,j
   OPTIMIZATIONS INVOLVING is_dummy HAVE NOT BEEN COMPLETELY IMPLEMENTED
 */
-double **mulQ2Local(charge **chgs, int numchgs, int *is_dummy, double x,
+double **mulQ2Local(ssystem* sys, charge **chgs, int numchgs, int *is_dummy, double x,
     double y, double z, int order)
 {
   int i, j, k, kold, n, m, start;
@@ -315,9 +317,12 @@ double **mulQ2Local(charge **chgs, int numchgs, int *is_dummy, double x,
   extern double *Rhon, *Rho, *Betam, *Beta, *tleg;
 
   /* Allocate the matrix. */
-  CALLOC(mat, terms, double*, ON, AQ2L);
-  for(i=0; i < terms; i++) 
-      CALLOC(mat[i], numchgs, double, ON, AQ2L);
+  mat=0;
+  mulALLOC(mat, terms, double*, ON, AQ2L, sys,AllocTypePtrArray );
+  for(i=0; i < terms; i++)
+  {
+      mulALLOC(mat[i], numchgs, double, ON, AQ2L, sys, AllocTypeGeneric);
+  }
 
   /* get Legendre function evaluations, one set for each charge */
   /*  also get charge coordinates, set up for subsequent evals */
@@ -342,7 +347,7 @@ double **mulQ2Local(charge **chgs, int numchgs, int *is_dummy, double x,
   /* add the rho^n+1 factors to the cos matrix entries. */
   for(n = 0; n <= order; n++) {	/* loop on rows of matrix */
     for(m = 0; m <= n; m++) {
-      for(j = 0; j < numchgs; j++) 
+      for(j = 0; j < numchgs; j++)
 	  mat[CINDEX(n, m)][j] /= Rhon[j]; /* divide by factor */
     }
     for(j = 0; j < numchgs; j++) Rhon[j] *= Rho[j];	/* rho^n -> rho^n+1 */
@@ -405,7 +410,7 @@ double **mulQ2Local(charge **chgs, int numchgs, int *is_dummy, double x,
   follows NB10 equation marked circle(2A) except roles of j,k and n,m switched
   very similar to mulMulti2P()
 */
-double **mulLocal2P(double x, double y, double z, charge **chgs, int numchgs,
+double **mulLocal2P(ssystem* sys, double x, double y, double z, charge **chgs, int numchgs,
     int order)
 {
   double **mat;
@@ -414,9 +419,12 @@ double **mulLocal2P(double x, double y, double z, charge **chgs, int numchgs,
   int i, j, k, m, n, kold, start;
   int cterms = costerms(order), terms = multerms(order);
 
-  CALLOC(mat, numchgs, double*, ON, AL2P);
-  for(i = 0; i < numchgs; i++) 
-      CALLOC(mat[i], terms, double, ON, AL2P);
+  mat=0;
+  mulALLOC(mat, numchgs, double*, ON, AL2P, sys, AllocTypePtrArray);
+  for(i = 0; i < numchgs; i++)
+  {
+      mulALLOC(mat[i], terms, double, ON, AL2P, sys, AllocTypeGeneric);
+  }
 
   /* get Legendre function evaluations, one set for each charge */
   /*   also get charge coordinates to set up rest of matrix */
@@ -465,7 +473,7 @@ double **mulLocal2P(double x, double y, double z, charge **chgs, int numchgs,
 
   /* copy left half of matrix to right half for sin(m*phi) terms */
   for(i = 0; i < numchgs; i++) { /* loop on rows of matrix */
-    for(n = 1; n <= order; n++) { 
+    for(n = 1; n <= order; n++) {
       for(m = 1; m <= n; m++) {	/* copy a row */
 	mat[i][SINDEX(n, m, cterms)] = mat[i][CINDEX(n, m)];
       }

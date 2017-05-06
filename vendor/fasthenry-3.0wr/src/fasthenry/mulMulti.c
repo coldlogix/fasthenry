@@ -5,12 +5,12 @@
 /*
   Globals used for temporary storage.
 */
-double *Irn, *Mphi;		/* (1/r)^n+1, m*phi vect's */
-double *Ir, *phi;		/* 1/r and phi arrays, used to update above */
-double *Rho, *Rhon;		/* rho and rho^n array */
-double *Beta, *Betam;		/* beta and beta*m array */
-double *tleg;		/* Temporary Legendre storage. */
-double **factFac;		/* factorial factor array: (n-m+1)...(n+m) */
+double *Irn=0, *Mphi=0;		/* (1/r)^n+1, m*phi vect's */
+double *Ir=0, *phi=0;		/* 1/r and phi arrays, used to update above */
+double *Rho=0, *Rhon=0;		/* rho and rho^n array */
+double *Beta=0, *Betam=0;	/* beta and beta*m array */
+double *tleg=0;		        /* Temporary Legendre storage. */
+double **factFac=0;		    /* factorial factor array: (n-m+1)...(n+m) */
 
 /* SRW */
 int multerms(int);
@@ -25,14 +25,11 @@ double fact(int);
 void evalFactFac(double**, int);
 void mulMultiAlloc(int, int, int);
 void evalLegendre(double, double*, int);
-double **mulQ2Multi(charge**, int*, int, double, double, double, int);
-double **mulMulti2Multi(double, double, double, double, double, double, int);
-double **mulMulti2P(double, double, double, charge**, int, int);
 
 
-/* 
-   Used various places.  Returns number of coefficients in the multipole 
-   expansion. 
+/*
+   Used various places.  Returns number of coefficients in the multipole
+   expansion.
 */
 int multerms(int order)
 {
@@ -102,7 +99,7 @@ int index(int n, int m)
 
 /*
   gives the linear index into vector from n and m used by all routines dealing
-  with moments (sine parts), e.g. Mn^m 
+  with moments (sine parts), e.g. Mn^m
   assumes an array with all m = 0 (Mn^0) entries omitted to save space
   assumed entry order: (n,m) = (1,1) (2,1) (2,2) (3,1) (3,2) (3,3) (4,1)...
 */
@@ -207,7 +204,8 @@ void mulMultiAlloc(int maxchgs, int order, int depth)
 #endif
   extern double *sinmkB, *cosmkB, **facFrA;
 
-  if(maxchgs > 0) {
+  if(maxchgs > 0)
+  {
     CALLOC(Rho, maxchgs, double, ON, AMSC); /* rho array */
     CALLOC(Rhon, maxchgs, double, ON, AMSC); /* rho^n array */
     CALLOC(Beta, maxchgs, double, ON, AMSC); /* beta array */
@@ -220,7 +218,8 @@ void mulMultiAlloc(int maxchgs, int order, int depth)
   CALLOC(tleg, costerms(2*order), double, ON, AMSC);
 	       	/* temp legendre storage (2*order needed for local exp) */
   CALLOC(factFac, order+1, double*, ON, AMSC);
-  for(x = 0; x < order+1; x++) {
+  for(x = 0; x < order+1; x++)
+  {
     CALLOC(factFac[x], order+1, double, ON, AMSC);
   }
   evalFactFac(factFac, order);	/* get factorial factors for mulMulti2P */
@@ -238,12 +237,13 @@ void mulMultiAlloc(int maxchgs, int order, int depth)
   CALLOC(Q2Lcnt, depth+1, int*, ON, AMSC);
   CALLOC(Q2Pcnt, depth+1, int*, ON, AMSC);
   CALLOC(L2Lcnt, depth+1, int*, ON, AMSC);
-  CALLOC(M2Mcnt, depth+1, int*, ON, AMSC); 
-  CALLOC(M2Lcnt, depth+1, int*, ON, AMSC); 
-  CALLOC(M2Pcnt, depth+1, int*, ON, AMSC); 
+  CALLOC(M2Mcnt, depth+1, int*, ON, AMSC);
+  CALLOC(M2Lcnt, depth+1, int*, ON, AMSC);
+  CALLOC(M2Pcnt, depth+1, int*, ON, AMSC);
   CALLOC(L2Pcnt, depth+1, int*, ON, AMSC);
   CALLOC(Q2PDcnt, depth+1, int*, ON, AMSC);
-  for(x = 0; x < depth+1; x++) {
+  for(x = 0; x < depth+1; x++)
+  {
     CALLOC(Q2Mcnt[x], depth+1, int, ON, AMSC);
     CALLOC(Q2Lcnt[x], depth+1, int, ON, AMSC);
     CALLOC(Q2Pcnt[x], depth+1, int, ON, AMSC);
@@ -258,7 +258,8 @@ void mulMultiAlloc(int maxchgs, int order, int depth)
 
   /* from here down could be switched out when the fake dwnwd pass is used */
   CALLOC(facFrA, 2*order+1, double*, ON, AMSC);
-  for(x = 0; x < 2*order+1; x++) {
+  for(x = 0; x < 2*order+1; x++)
+  {
     CALLOC(facFrA[x], 2*order+1, double, ON, AMSC);
   }
   /* generate table of factorial fraction evaluations (for M2L and L2L) */
@@ -311,19 +312,19 @@ void evalLegendre(double cosA, double *vector, int order)
       }
     }
     for(x = 2; x < order-m+1; x++) { /* generate row of evals recursively */
-      vector[CINDEX(x+m, m)] = 
+      vector[CINDEX(x+m, m)] =
 	  ((2*(x+m)-1)*vector[CINDEX(1, 0)]*vector[CINDEX(x+m-1, m)]
 	   - (x + 2*m - 1)*vector[CINDEX(x+m-2, m)])/x;
     }
   }
 }
-    
-  
-/* 
+
+
+/*
   Returns a matrix which gives a cube's multipole expansion when *'d by chg vec
   OPTIMIZATIONS USING is_dummy HAVE NOT BEEN COMPLETELY IMPLEMENTED
 */
-double **mulQ2Multi(charge **chgs, int *is_dummy, int numchgs, double x,
+double **mulQ2Multi(ssystem* sys, charge **chgs, int *is_dummy, int numchgs, double x,
     double y, double z, int order)
 {
   double **mat;
@@ -331,11 +332,20 @@ double **mulQ2Multi(charge **chgs, int *is_dummy, int numchgs, double x,
   int i, j, k, kold, n, m, start;
   int cterms = costerms(order), terms = multerms(order);
 
-  /* Allocate the matrix. */
-  CALLOC(mat, terms, double*, ON, AQ2M);
-  for(i=0; i < terms; i++) 
-      CALLOC(mat[i], numchgs, double, ON, AQ2M);
+  if ((Beta==NULL))
+  {
+     fprintf(stderr,"mulQ2Multi: global Beta not initialized\n");
+     exit (-1);
+  }
 
+  /* Allocate the matrix. */
+  mat=0;
+  mulALLOC(mat, terms, double*, ON, AQ2M, sys, AllocTypePtrArray);
+
+  for(i=0; i < terms; i++)
+  {
+      mulALLOC(mat[i], numchgs, double, ON, AQ2M, sys, AllocTypeGeneric);
+  }
   /* get Legendre function evaluations, one set for each charge */
   /*  also get charge coordinates, set up for subsequent evals */
   for(j = 0; j < numchgs; j++) { /* for each charge */
@@ -414,20 +424,34 @@ double **mulQ2Multi(charge **chgs, int *is_dummy, int numchgs, double x,
   return(mat);
 }
 
-double **mulMulti2Multi(double x, double y, double z, double xp,
+double **mulMulti2Multi(ssystem* sys, double x, double y, double z, double xp,
     double yp, double zp, int order)
 /* double x, y, z, xp, yp, zp;	cube center, parent cube center */
 {
-  double **mat, rho, rhoPwr, cosA, beta, mBeta, temp1, temp2; 
+  double **mat, rho, rhoPwr, cosA, beta, mBeta, temp1, temp2;
   int r, j, k, m, n, c;
   int cterms = costerms(order), sterms = sinterms(order);
   int terms = cterms + sterms;
 
+  if ((tleg==NULL))
+  {
+     fprintf(stderr,"mulMulti2Multi: global tleg not initialized\n");
+     exit (-1);
+  }
+
+
   /* Allocate the matrix (terms x terms ) */
-  CALLOC(mat, terms, double*, ON, AM2M);
-  for(r=0; r < terms; r++) CALLOC(mat[r], terms, double, ON, AM2M);
+    mat=0;
+  mulALLOC(mat, terms, double*, ON, AM2M, sys, AllocTypePtrArray);
+
+  for(r=0; r < terms; r++)
+  {
+    mulALLOC(mat[r], terms, double, ON, AM2M, sys,AllocTypeGeneric);
+  }
   for(r = 0; r < terms; r++)
+  {
       for(c = 0; c < terms; c++) mat[r][c] = 0.0;
+  }
 
   /* get relative distance in spherical coordinates */
   xyz2sphere(x, y, z, xp, yp, zp, &rho, &cosA, &beta);
@@ -482,26 +506,26 @@ double **mulMulti2Multi(double x, double y, double z, double xp,
 	    if(m != 0) {
 	      if(k-m < 0 && abs(k-m) <= j-n) {	/* use conjugates here */
 		mat[SINDEX(j, k,cterms)][CINDEX(j-n, m-k)] += temp1*sin(mBeta);
-		mat[SINDEX(j, k, cterms)][SINDEX(j-n, m-k, cterms)] 
+		mat[SINDEX(j, k, cterms)][SINDEX(j-n, m-k, cterms)]
 		    -= temp1*cos(mBeta);
 	      }
 	      else if(k-m == 0) {/* double to compensate for 2Re sub */
-		mat[SINDEX(j, k, cterms)][CINDEX(j-n, k-m)] 
+		mat[SINDEX(j, k, cterms)][CINDEX(j-n, k-m)]
 		    += 2*temp1*sin(mBeta);
 		/* sine term is always zero */
 	      }
 	      else if(k-m > 0 && k-m <= j-n) {
 		mat[SINDEX(j, k,cterms)][CINDEX(j-n, k-m)] += temp1*sin(mBeta);
-		mat[SINDEX(j, k, cterms)][SINDEX(j-n, k-m, cterms)] 
+		mat[SINDEX(j, k, cterms)][SINDEX(j-n, k-m, cterms)]
 		    += temp1*cos(mBeta);
 	      }
 	      if(k+m <= j-n) {
 		mat[SINDEX(j, k,cterms)][CINDEX(j-n, k+m)] -= temp2*sin(mBeta);
-		mat[SINDEX(j, k, cterms)][SINDEX(j-n, k+m, cterms)] 
+		mat[SINDEX(j, k, cterms)][SINDEX(j-n, k+m, cterms)]
 		    += temp2*cos(mBeta);
 	      }
 	    }			/* do if m = 0 and moments not zero */
-	    else if(k <= j-n) mat[SINDEX(j, k,cterms)][SINDEX(j-n, k, cterms)] 
+	    else if(k <= j-n) mat[SINDEX(j, k,cterms)][SINDEX(j-n, k, cterms)]
 		+= temp2;
 	  }
 	}
@@ -514,10 +538,10 @@ double **mulMulti2Multi(double x, double y, double z, double xp,
   return(mat);
 }
 
-/* 
-  builds multipole evaluation matrix; used only for fake downward pass 
+/*
+  builds multipole evaluation matrix; used only for fake downward pass
 */
-double **mulMulti2P(double x, double y, double z, charge **chgs, int numchgs,
+double **mulMulti2P(ssystem* sys, double x, double y, double z, charge **chgs, int numchgs,
     int order)
 /* double x, y, z;			multipole expansion origin */
 {
@@ -528,13 +552,23 @@ double **mulMulti2P(double x, double y, double z, charge **chgs, int numchgs,
   int cterms = costerms(order), sterms = sinterms(order);
   int terms = cterms + sterms;
 
-  CALLOC(mat, numchgs, double*, ON, AM2P);
-  for(i=0; i < numchgs; i++) 
-      CALLOC(mat[i], terms, double, ON, AM2P);
+  if ((Ir==NULL) || (phi==NULL))
+  {
+    fprintf(stderr,"mulMulti2P: global Ir not initialized\n");
+    exit (-1);
+  }
+
+   mat=0;
+  mulALLOC(mat, numchgs, double*, ON, AM2P, sys, AllocTypePtrArray);
+  for(i=0; i < numchgs; i++)
+  {
+      mulALLOC(mat[i], terms, double, ON, AM2P, sys, AllocTypeGeneric);
+  }
 
   /* get Legendre function evaluations, one set for each charge */
   /*   also get charge coordinates to set up rest of matrix */
-  for(i = 0; i < numchgs; i++) { /* for each charge, do a legendre eval set */
+  for(i = 0; i < numchgs; i++)
+  { /* for each charge, do a legendre eval set */
     xyz2sphere(chgs[i]->x, chgs[i]->y, chgs[i]->z,
 	       x, y, z, &(Ir[i]), &cosTh, &(phi[i]));
 
@@ -583,7 +617,7 @@ double **mulMulti2P(double x, double y, double z, charge **chgs, int numchgs,
 
   /* copy left half of matrix to right half for sin(m*phi) terms */
   for(i = 0; i < numchgs; i++) { /* loop on rows of matrix */
-    for(n = 1; n <= order; n++) { 
+    for(n = 1; n <= order; n++) {
       for(m = 1; m <= n; m++) {	/* copy a row */
 	mat[i][SINDEX(n, m, cterms)] = mat[i][CINDEX(n, m)];
       }

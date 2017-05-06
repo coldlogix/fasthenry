@@ -1,12 +1,11 @@
 /* these are functions used in mulSetup.c in determining whether to go down */
 /* further in partitioning levels */
 
-#include "induct.h"
+/* Global definition */
+#include "Prec_cost.h"
 
+/* Local definition */
 /* SRW */
-double OneCubeCost(cube*****, int, int, int, int, int, double*);
-double ratio_of_divided_segs(double, charge*, SYS*);
-int is_gp_charge(charge*);
 void add_to_counts(cube*, int, int*****, int*****);
 /*
 void dump_evalcnts(ssystem*);
@@ -16,11 +15,11 @@ int *****make_ints_for_cubes(ssystem*);
 
 
 /* this function estimates the size of the matrix which will be inverted
-  for this cube for the preconditioner.  Since M has not been formed, and 
+  for this cube for the preconditioner.  Since M has not been formed, and
   the size of the preconditioner is based on meshes, not filaments/charges,
-  it will estimate that there is one mesh per normal filament and one mesh for 
+  it will estimate that there is one mesh per normal filament and one mesh for
   every two ground plane filaments.  Thus the number of meshes in a cube
-  is cube->multisize/2.  
+  is cube->multisize/2.
 */
 
 double OneCubeCost(cube *****cubes, int i, int j, int k, int l, int side,
@@ -44,7 +43,7 @@ double OneCubeCost(cube *****cubes, int i, int j, int k, int l, int side,
 	}
 
   *dir_cost += this_size*dir_total;
-  
+
   return total*total*total;
 }
 
@@ -98,8 +97,8 @@ void dump_evalcnts(ssystem *sys)
   int i,j,k,m,side;
   cube *nc, *na;
 
-  printf("      cube    parent          Q2P              L2P               M2P\n"); 
-  printf(" lvl  j,k,l    j,k,l   cubes size_mats    cubes size_mats   cubes size_mats\n"); 
+  printf("      cube    parent          Q2P              L2P               M2P\n");
+  printf(" lvl  j,k,l    j,k,l   cubes size_mats    cubes size_mats   cubes size_mats\n");
 
     for(side = 1, i=0; i <= sys->depth; side *= 2, i++) {
       for(j=0; j < side; j++) {
@@ -112,7 +111,7 @@ void dump_evalcnts(ssystem *sys)
 		na = nc;
 	      printf("%3i  %3i %3i %3i   %3i %3i %3i  %3d %10d  %3d %10d  %3d %10d\n",
 		     i, nc->j, nc->k, nc->l, na->j, na->k, na->l,
-		     sys->evalQ2Ps[i][j][k][m], sys->cntQ2Ps[i][j][k][m], 
+		     sys->evalQ2Ps[i][j][k][m], sys->cntQ2Ps[i][j][k][m],
 		     sys->evalL2Ps[i][j][k][m], sys->cntL2Ps[i][j][k][m],
 		     sys->evalM2Ps[i][j][k][m], sys->cntM2Ps[i][j][k][m]);
 	    }
@@ -124,7 +123,7 @@ void dump_evalcnts(ssystem *sys)
 
 void initCounters(ssystem *sys)
 {
-  
+
   sys->evalQ2Ps = make_ints_for_cubes(sys);
   sys->evalL2Ps = make_ints_for_cubes(sys);
   sys->evalM2Ps = make_ints_for_cubes(sys);
@@ -138,18 +137,25 @@ int *****make_ints_for_cubes(ssystem *sys)
   int *****cubes;
   int i,j,k,m,side;
 
-    CALLOC(cubes, sys->depth+1, int****, ON, AMSC); 
+    cubes=NULL;
+    mulALLOC(cubes, sys->depth+1, int****, ON, AMSC, sys, AllocTypePtrArray);
 
     /* allocate for levels 0, 1, and 2 (always used) */
-    for(side = 1, i=0; i <= sys->depth; side *= 2, i++) {
-      CALLOC(cubes[i], side, int***, ON, AMSC);
-      for(j=0; j < side; j++) {
-	CALLOC(cubes[i][j], side, int**, ON, AMSC);
-	for(k=0; k < side; k++) {
-	  CALLOC(cubes[i][j][k], side, int*, ON, AMSC);
-	  for(m = 0; m < side; m++)
-	    cubes[i][j][k][m] = 0;
-	}
+    for(side = 1, i=0; i <= sys->depth; side *= 2, i++)
+    {
+      mulALLOC(cubes[i], side, int***, ON, AMSC, sys, AllocTypePtrArray);
+
+      for(j=0; j < side; j++)
+      {
+	    mulALLOC(cubes[i][j], side, int**, ON, AMSC, sys, AllocTypePtrArray);
+	    for(k=0; k < side; k++)
+        {
+	      mulALLOC(cubes[i][j][k], side, int*, ON, AMSC, sys, AllocTypePtrArray);
+	      for(m = 0; m < side; m++)
+          {
+	        cubes[i][j][k][m] = 0;
+          }
+	    }
       }
     }
 

@@ -48,7 +48,7 @@ struct charge {			/* point charge */
 };
 typedef struct charge charge;
 
-struct cube {		
+struct cube {
 /* Definition variables. */
   int index;			/* unique index */
   int level;			/* 0 => root */
@@ -59,8 +59,8 @@ struct cube {
 /* Upward Pass variables. */
   int mul_exact;                /* TRUE => do not build a multipole expansn */
   struct cube *mnext;		/* Ptr to next cube on which to do multi. */
-  int upnumvects;		/* 0 if empty,  1 on bot level if not empty, 
-				   else # nonempty kids. */ 
+  int upnumvects;		/* 0 if empty,  1 on bot level if not empty,
+				   else # nonempty kids. */
   int *upnumeles;		/* numeles[0] = # chgs on bot level, else
 				   number of terms in kid's expansion. */
   double **upvects;     /* vects[0] = chgs on bot level, else vectors
@@ -86,7 +86,7 @@ struct cube {
   double ***downmats;   /* Matrices for multi to chg, or multi to local
 			   or local to local.  Downnumele x localsize. */
 
-  struct cube **interList;	/* explicit interaction list 
+  struct cube **interList;	/* explicit interaction list
 				   - for fake dwnwd passes and eval pass */
   int interSize;		/* number of elements in interList
 				   - often != downnumvects nor evalnumvects */
@@ -100,7 +100,7 @@ struct cube {
   double *eval;			/* vector of evaluation pnt voltages in cube */
   double ***evalmats;		/* matrices for multi to potential, local to
 				   potential or charge to potential */
-  int *eval_isQ2P;              /* is this matrix done directly? 
+  int *eval_isQ2P;              /* is this matrix done directly?
 				   For inductance stuff   12/92 */
 
 /* Direct portion variables. */
@@ -109,7 +109,7 @@ struct cube {
   struct cube *rpnext;		/* Reverse ptr to next cube to do precond. */
   int dindex;			/* Used to determine lower triang portion. */
   int directnumvects;		/* Number of vects, self plus nbrs. */
-  int *directnumeles;		/* # of elements in the nbrs chg vect. 
+  int *directnumeles;		/* # of elements in the nbrs chg vect.
 				   directnumeles[0] = numchgs in cube. */
   double **directq;		/* Vecs of chg vecs, directq[0] this cube's. */
   double ***directmats;		/* Potential Coeffs in cube and neighbors. */
@@ -131,6 +131,29 @@ struct cube {
 
 };
 typedef struct cube cube;
+
+#define AllocTypeGeneric 0
+#define AllocTypeAllocationRecord 4
+#define AllocTypePtrArray 10
+#define AllocTypessystem 11
+#define AllocTypecube 12
+#define AllocTypecharge 13
+#define AllocTypesurface 14
+#define AllocTypeName 15
+#define AllocTypeExtCharge 16
+
+#define  ELEMENTS_PER_ALLOCATION        31
+
+struct mulAllocationRecord
+{   char  *AllocatedPtr;
+    unsigned long AllocatedSize;
+    unsigned int AllocatedType;
+    unsigned int Mark;
+    unsigned int AllocatedDebugLineNumber;
+    const char* AllocatedDebugFilename;
+    struct  mulAllocationRecord  *NextRecord;
+};
+typedef  struct  mulAllocationRecord  *mulAllocationListPtr;
 
 struct ssystem {
   int side;                     /* # cubes per side on lowest level. */
@@ -174,13 +197,13 @@ struct ssystem {
   int *****cntL2Ps;
   int *****cntM2Ps;
 */
+  void* indsys;
+
 };
 typedef struct ssystem ssystem;
 
-
-
-
-
+#define mulALLOC(PNTR,NUM,TYP,FLAG,MTYP,sys,ALLOCTYP) mulALLOC_func((void**)&PNTR,NUM,sizeof(TYP),FLAG,MTYP,ALLOCTYP,sys, __FILE__, __LINE__)
+void mulALLOC_func(void** PNTR,unsigned long NUM,unsigned long TYPESIZE,int FLAG, int MTYP, unsigned int ATYP, ssystem* sys, const char* filename, unsigned int linenumber);
 
 
 

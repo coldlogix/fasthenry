@@ -1,10 +1,13 @@
 /* this breaks a segment that is too long, into many shorter segments */
-#include "induct.h"
+/* Global definitions */
+#include "BreakupSeg.h"
+#include "findpaths.h"
+#include "readGeom.h"
 
+/* Local definitions */
 #define DIVFACT 1  /* a factor that is always 1 except for debugging */
 
 /* SRW */
-void DivideSegs(double, charge*, SYS*, int);
 void BreakupSeg(SEGMENT*, double, charge*, SYS*);
 void alterFils(SEGMENT*, NODES*, double, double, double);
 
@@ -20,7 +23,7 @@ void DivideSegs(double length, charge *charges, SYS *indsys, int is_initial)
   for(seg = indsys->segment; seg != NULL; seg = seg->next) {
     if (seg->length > length/DIVFACT) {
       if (indsys->opts->auto_refine == ON || is_initial == TRUE) {
-	if (seg->type == NORMAL) 
+	if (seg->type == NORMAL)
 	  BreakupSeg(seg, length/DIVFACT, charges, indsys);
 	else if (!warned) {
 	  fprintf(stdout, "DivideSegs: Warning: tried to divide an indivisable segment.\n");
@@ -55,10 +58,10 @@ void BreakupSeg(SEGMENT *seg, double maxlength, charge *charges, SYS *indsys)
   NPATH *apath;
   SPATH *condpath, *lastpath, *headpath, *condbeg, *condend;
   int backwards;
-    
+
   oldlength = seg->length;
   pieces = seg->length/maxlength + 1;
-  
+
   seg->length = seg->length/pieces;
   origsegnext = seg->next;
 
@@ -80,13 +83,13 @@ void BreakupSeg(SEGMENT *seg, double maxlength, charge *charges, SYS *indsys)
     exit(1);
   }
 
-  newnode = makenode(name, indsys->num_nodes++, x, y, z, nodelast->type, NULL);
+  newnode = makenode(name, indsys->num_nodes++, x, y, z, nodelast->type, indsys,0);
   newnode->next = node0->next;
   node0->next = newnode;
 
-  remove_from_connected_segs(seg->node[1], seg, NULL);
+  remove_from_connected_segs(indsys,seg->node[1], seg, NULL);
   seg->node[1] = newnode;
-  add_to_connected_segs(newnode, seg, NULL);
+  add_to_connected_segs(indsys,newnode, seg, NULL);
 
   alterFils(seg, newnode, dx, dy, dz);   /* modify the segment's fils */
 
@@ -95,14 +98,14 @@ void BreakupSeg(SEGMENT *seg, double maxlength, charge *charges, SYS *indsys)
   chgend = seg->filaments[seg->num_fils-1].pchg;
   oldnext = chgend->next;
   for(i = 1; i < pieces; i++) {
-    
+
     if (i != pieces - 1) {
       x = nodelast->x + dx;
       y = nodelast->y + dy;
       z = nodelast->z + dz;
       sprintf(name, "%s_%d",node0->name, i);
-      newnode = makenode(name, indsys->num_nodes++, x, y, z, nodelast->type, 
-			 NULL);
+      newnode = makenode(name, indsys->num_nodes++, x, y, z, nodelast->type,
+			 indsys,0);
       newnode->next = nodelast->next;
       nodelast->next = newnode;
 
@@ -119,11 +122,11 @@ void BreakupSeg(SEGMENT *seg, double maxlength, charge *charges, SYS *indsys)
     newseg = makeseg(name, nodelast, newnode, seg->height, seg->width,
 		     seg->sigma,
 #if SUPERCON == ON
-		     seg->lambda, 
+		     seg->lambda,
 #endif
                      seg->hinc, seg->winc, seg->r_height,
 		     seg->r_width, seg->widthdir,
-		     indsys->num_segs++, NORMAL, NULL);
+		     indsys->num_segs++, NORMAL, indsys,0);
 
 #if SUPERCON == ON
     newseg->r1 = seg->r1;  /* bug fix 6/19/01 */
@@ -132,16 +135,16 @@ void BreakupSeg(SEGMENT *seg, double maxlength, charge *charges, SYS *indsys)
     newseg->next = lastseg->next;
     lastseg->next = newseg;
 
-    chgend = assignFil(newseg, &(indsys->num_fils), chgend);
-  
+    chgend = assignFil(indsys,newseg, &(indsys->num_fils), chgend);
+
     lastseg = newseg;
-    nodelast = newnode;    
+    nodelast = newnode;
 
   } /* for(i = pieces..) */
   chgend->next = oldnext;
 
 }
-    
+
 void alterFils(SEGMENT *seg, NODES *node, double dx, double dy, double dz)
 {
   FILAMENT *fil;

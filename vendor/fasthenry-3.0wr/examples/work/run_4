@@ -1,0 +1,15 @@
+#! /bin/sh
+
+# Run all of the example .inp files.
+rm -f *.out *.mat 1.txt; 
+
+for a in ../*.inp; do
+    mpiexec -n 8 ../../bin/fasthenry $a 2>&1 | tee `basename $a inp`out
+    mv Zc.mat `basename $a inp`mat
+done
+rm Zc_*.mat
+for f in *.mat
+do
+        echo $f
+        cmp $f ./results/$f
+done
