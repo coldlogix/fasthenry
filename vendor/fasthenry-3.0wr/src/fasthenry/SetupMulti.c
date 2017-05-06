@@ -1,13 +1,15 @@
 /* this is 'fastcap.c' */
 #include "induct.h"
 
-ssystem *SetupMulti(chglist, indsys)
-charge *chglist;
-SYS *indsys;
+/* SRW */
+ssystem *SetupMulti(charge*, SYS*);
+
+
+ssystem *SetupMulti(charge *chglist, SYS *indsys)
 {
   int ttliter, i, j, num_cond;
-  charge *nq, *input_problem();
-  ssystem *sys, *mulInit();
+  charge *nq;
+  ssystem *sys;
   double **capmat, dirtimesav, mulsetup, initalltime, ttlsetup, ttlsolve;
   double relperm;
   int autmom, autlev, numMom, numLev;
@@ -234,7 +236,7 @@ SYS *indsys;
 #endif
 
 #endif				/* DIRSOL == OFF */
-  dumpnums(ON, eval_size, up_size); /* save num/type of pot. coeff calcs */
+  dumpnums(ON, eval_size); /* save num/type of pot. coeff calcs */
 
   dirtimesav = dirtime;		/* save direct matrix setup time */
   dirtime = 0.0;		/* make way for direct solve time */
@@ -267,7 +269,7 @@ SYS *indsys;
   /* stoptimer */
   mulsetup = dtime;		/* save multipole matrix setup time */
 
-  dumpnums(OFF, eval_size, up_size);	/* dump num/type of pot. coeff calcs */
+  dumpnums(OFF, eval_size);	/* dump num/type of pot. coeff calcs */
 
 #if DUMPPS == ALL
   dump_ps_mat(filename, 0, 0, eval_size, eval_size, argv, argc, CLOSE);
