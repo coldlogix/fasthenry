@@ -2,7 +2,7 @@
 
 program=fasthenry
 version="3.0wr"
-vdate="082514"
+vdate="092815"
 
 # The inno packager exeutable.
 inno="/inno-5.5.1/iscc"

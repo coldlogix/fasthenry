@@ -1,11 +1,17 @@
-# CFLAGS = -O -DOTHER -DNO_ATANH -DNO_ISNAN -DNO_GETHOSTNAME
-# NO reason to use this file, MinGW no longer requires these defines.
-CFLAGS = -O -DFOUR
+# These CFLAGS should be fine for anything other than MinGW.
+#CFLAGS = -O -g -DFOUR
+
+# For MinGW, there is no getrusage, and we'll skip a gethostname call
+# to avoid having to link with winsock.
+CFLAGS = -O -g -DFOUR -DNO_RUSAGE -DNO_GETHOSTNAME
+
+# We're going to assume gcc, you'll need to comment this if a non-compatible
+# compiler is used.
+CC = gcc
 
 SHELL = /bin/sh
 RM = /bin/rm
 BIN = ../../bin
-CC = gcc
 
 SPLIB = sparse/sparse.a
 
@@ -27,7 +33,7 @@ NONUNIHEAD = gp.h
 
 fasthenry:	$(OBJS) $(MOBJS) $(NONUNIOBJS) $(SPLIB)
 	$(CC) -o fasthenry $(CFLAGS) $(OBJS) $(MOBJS) $(NONUNIOBJS) $(SPLIB) -lm
-	mv fasthenry.exe $(BIN)/fasthenry.exe
+	mv fasthenry $(BIN)/fasthenry
 
 $(SPLIB):
 	cd sparse; make CC=$(CC)

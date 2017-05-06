@@ -41,7 +41,7 @@ of this software.
 #include "mulGlobal.h"
 
 #define FHVERSION "3.0wr"
-#define FHDATE "29Sep96, mod 082514"
+#define FHDATE "29Sep96, mod 092815"
 
 #define AVER_MAT_MAX 110        /* These are two constants used to */
 #define MAX_DIV_RAT 0.25        /* decide partitioning level      */

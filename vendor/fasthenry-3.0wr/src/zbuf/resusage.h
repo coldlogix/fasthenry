@@ -34,6 +34,49 @@ of this software.
 
 /* header where rusage and time structs are defined */
 
+/* SRW ** Revised this:
+ * getrusage is preferred, as it computes cpu time rather than wall-clock
+ * time.  If getrusage is not available (as in MinGW) use gettimeofday.
+ */
+
+#include <sys/time.h>
+
+static double dtime = 0.0;
+static long sectime, utime;
+
+#ifndef NO_RUSAGE
+#include <sys/resource.h>
+
+struct rusage timestuff;
+
+#define starttimer getrusage(RUSAGE_SELF, &timestuff); \
+    sectime = timestuff.ru_utime.tv_sec; \
+    utime = timestuff.ru_utime.tv_usec
+
+#define stoptimer getrusage(RUSAGE_SELF, &timestuff); \
+    dtime = (double)(timestuff.ru_utime.tv_sec - sectime) \
+        + 1.0e-6*(double)(timestuff.ru_utime.tv_usec - utime)
+
+#else /* NO_RUSAGE */
+
+static struct timeval ru_tv;
+static struct timezone ru_tz;
+
+#define starttimer gettimeofday(&ru_tv, &ru_tz); \
+    sectime = ru_tv.tv_sec; \
+    utime = ru_tv.tv_usec
+
+#define stoptimer gettimeofday(&ru_tv, &ru_tz); \
+    dtime = (double)(ru_tv.tv_sec - sectime) \
+        + 1.0e-6*(double)(ru_tv.tv_usec - utime)
+
+#endif /* NO_RUSAGE */
+
+#define DUMPRSS			/*  */
+
+
+#ifdef notdef
+/* SRW ** Below find original code. */
 #ifdef FOUR
 #define NOTOTHER 1
 #include <sys/time.h>
@@ -82,3 +125,4 @@ dtime /= HZ
 #define DUMPRSS			/*  */
 
 #endif /* NOTOTHER */
+#endif /* notdef */

@@ -1,6 +1,17 @@
 # Makefile for
 #  zbuf - capacitance or inductance visualization picture
 
+# These CFLAGS should be fine for anything other than MinGW.
+CFLAGS = -O -g -DFOUR
+
+# For MinGW, there is no getrusage, and we'll skip a gethostname call
+# to avoid having to link with winsock.
+#CFLAGS = -O -g -DFOUR -DNO_RUSAGE -DNO_GETHOSTNAME
+
+# We're going to assume gcc, you'll need to comment this if a non-compatible
+# compiler is used.
+CC = gcc
+
 # assumed places for unaliased executables - must be same in all Makefile.*
 SHELL = /bin/sh
 AWK = awk
@@ -37,19 +48,6 @@ $(IO)/zbufInOut.c $(IO)/zbuf2fastcap.c $(IO)/zbufProj.c $(IO)/zbufSort.c \
 $(IO)/dump_struct.c $(IO)/savemat_mod.c
 
 LIBS = -lm
-
-# These compile flags are needed to account for differences in the
-#  resource usage system call used to get CPU time and memory use data
-#  - also used to select the correct CC macro definition for AIX machines
-#
-# for generic machine use (timers not supported)
-#CFLAGS = -O -DOTHER
-# for most machines running 4.2/3 use (only necessary if timers are needed)
-CFLAGS = -O -DFOUR
-# for most machines running System V use (only necessary if timers are needed)
-#CFLAGS = -O -DFIVE
-# for IBM AIX systems use
-#CC = xlc
 
 zbuf: $(OBJS)
 	$(CC) -o zbuf $(CFLAGS) $(OBJS) $(LIBS)

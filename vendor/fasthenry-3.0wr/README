@@ -126,6 +126,17 @@ Modifications by:        Stephen R. Whiteley  (stevew@wrcad.com)
   (for example) now closely matches the output from FastHenry2 with
   the same input.
 
+** 9-28-2015 Changes:
+
+  Fixed MinGW compilation.  I don't think that the port to MinGW was
+  ever complete, and it was actually building with Cygwin.  The
+  present release alters resusage.h for MinGW compatibility, and adds
+  a Makefile tweak.
+
+  To build for MinGW, you must either hand-edit
+  src/fasthenry/Makefile, or run "config mingw".  There is a small
+  change to the CFLAGS required.
+
 
 --------------------- Superconductivity Support -------------------------
 

@@ -1,11 +1,21 @@
 # Makefile for
 #  zbuf - capacitance or inductance visualization picture
 
+# These CFLAGS should be fine for anything other than MinGW.
+#CFLAGS = -O -g -DFOUR
+
+# For MinGW, there is no getrusage, and we'll skip a gethostname call
+# to avoid having to link with winsock.
+CFLAGS = -O -g -DFOUR -DNO_RUSAGE -DNO_GETHOSTNAME
+
+# We're going to assume gcc, you'll need to comment this if a non-compatible
+# compiler is used.
+CC = gcc
+
 # assumed places for unaliased executables - must be same in all Makefile.*
 SHELL = /bin/sh
 AWK = awk
 RM = /bin/rm
-CC = gcc
 
 MAKETYPE = other
 # normally overidden by master Makefile
@@ -39,13 +49,9 @@ $(IO)/dump_struct.c $(IO)/savemat_mod.c
 
 LIBS = -lm
 
-# CFLAGS = -O -DOTHER -DNO_ATANH -DNO_ISNAN -DNO_GETHOSTNAME
-# NO reason to use this file, MinGW no longer requires these flags.
-CFLAGS = -O -DFIVE
-
 zbuf: $(OBJS)
 	$(CC) -o zbuf $(CFLAGS) $(OBJS) $(LIBS)
-	mv zbuf.exe $(BIN)/zbuf.exe
+	mv zbuf $(BIN)/zbuf
 
 clean:
 	$(RM) -f *.o
