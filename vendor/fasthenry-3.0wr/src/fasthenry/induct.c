@@ -98,18 +98,12 @@ int
 main(int argc, char **argv)
 {
 
-  double width, height, length, freq, freqlast;
-  int Linc, Winc, Hinc, filnum;
-  double ratio;
+  double freq;
   GROUNDPLANE *plane;                   /* CMS 7/7/92 */
-  FILAMENT *tmpf;
-  SEGMENT  *tmps;
   SEGMENT *seg;
   NODES *node;
   int i,j,k,m, last, err;
   char fname[80], tempstr[10];
-  double r_height, r_width;
-  CX dumb;
   CX *vect, **pvect;         /* space needed by gmres */
   double tol = 1e-8;
   double ftimes[TIMESIZE];
@@ -122,8 +116,7 @@ main(int argc, char **argv)
   double totaltime;
   int dont_form_Z;       /* if fmin=0, don't from the L matrix */
   char *MRMt;            /* may be needed if ROM is requested */
-  double **MRMtinvMLMt, **B, **C;
-  double **romB, **romC;
+  double **B, **C;
   int actual_order;
 
   int num_planes, nonp, planemeshes, tree_meshes;           /* CMS 6/7/92 */
