@@ -137,6 +137,14 @@ Modifications by:        Stephen R. Whiteley  (stevew@wrcad.com)
   src/fasthenry/Makefile, or run "config mingw".  There is a small
   change to the CFLAGS required.
 
+** 11-9-2015 Changes:
+
+  Back in 2003, MIT re-released FastHenry under the "new" MIT license,
+  which was far more open-source friendly than the original 1996
+  license.  This "wr" branch continued to carry the original license
+  language, unil now.  There are no code changes in this release, only
+  the licensing info in the source files has been updated or added.
+
 
 --------------------- Superconductivity Support -------------------------
 
